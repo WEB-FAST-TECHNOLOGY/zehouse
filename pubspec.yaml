@@ -1,0 +1,77 @@
+name: zehouse
+description: A new Flutter project.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:       # CRITICAL: Required for every Flutter project - DO NOT REMOVE
+    sdk: flutter # CRITICAL: Required for every Flutter project - DO NOT REMOVE
+  
+  # CRITICAL: Core UI and responsive design - DO NOT REMOVE OR MODIFY
+  supabase_flutter: ^2.9.1
+  sizer: ^2.0.15              # Required for responsive design system
+  flutter_svg: ^2.0.9        # Required for SVG icon support
+  google_fonts: ^6.1.0       # Required for typography (replaces local fonts)
+  shared_preferences: ^2.2.2 # Required for local data storage
+  web: ^1.1.1
+  
+  # Feature dependencies - safe to modify
+  cached_network_image: ^3.3.1
+  connectivity_plus: ^6.1.4
+  dio: ^5.4.0
+  fluttertoast: ^8.2.4
+  fl_chart: ^0.65.0
+  google_sign_in: ^6.2.2     # Google social authentication
+  geolocator: ^14.0.2        # GPS location detection for nearby services feature
+  cinetpay: ^1.0.8           # CinetPay payment checkout widget for mobile
+  uuid: ^4.5.3               # Generate unique transaction IDs for CinetPay payments
+  mapbox_maps_flutter: ^2.23.0 # Mapbox interactive maps for Android and iOS
+  moneroo_flutter_sdk: ^0.3.4 # Moneroo payment SDK for mobile checkout (Android/iOS)
+  url_launcher: ^6.3.2       # Open Google Maps / Apple Maps for real navigation/itinerary
+  image_picker: ^1.0.4       # Profile photo upload for professional accounts during sign-up
+  easy_localization: ^3.0.8  # Real translation system with JSON files for multi-language support
+
+  universal_html: ^2.2.4
+  http: ^1.2.0
+
+  # Push Notifications — Firebase Cloud Messaging
+  firebase_core: ^3.13.1       # Required base for all Firebase Flutter plugins
+  firebase_messaging: ^15.2.5  # FCM: receive push notifications via Firebase
+  flutter_local_notifications: ^18.0.1 # Display in-app / local notifications when app is foreground
+  google_mobile_ads: ^7.0.0
+dev_dependencies:
+  flutter_test:    # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
+    sdk: flutter   # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
+  flutter_lints: ^5.0.0 # CRITICAL: Required for code quality - DO NOT REMOVE
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
+
+flutter:
+  uses-material-design: true # CRITICAL: Required for Material icon font - DO NOT REMOVE
+  assets:
+    - assets/images/
+    - assets/translations/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo_simple.png"
+
+flutter_native_splash:
+  color: "#F8FAFC"
+  color_dark: "#0B0E14"
+  image: "assets/images/logo_simple.png"
+  android_12:
+    image: "assets/images/logo_simple.png"
+    color: "#F8FAFC"
+    color_dark: "#0B0E14"
+  # CRITICAL ASSET MANAGEMENT RULES:
+  # - DO NOT ADD NEW ASSET DIRECTORIES (assets/svg/, assets/icons/, etc.)
+  # - ONLY USE EXISTING AND ITEMS AVAILABLE IN THE DIRECTORIES LISTED ABOVE (assets/, assets/images/)
+  
+  # CRITICAL FONTS RULE: 
+  # - THIS PROJECT USES GOOGLE FONTS INSTEAD OF LOCAL FONTS
+  # - DO NOT ADD ANY LOCAL FONTS SECTION OR FONT FILES

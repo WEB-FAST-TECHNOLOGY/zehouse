@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "123244791185",
+    "project_id": "zehouse-wftech",
+    "storage_bucket": "zehouse-wftech.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123244791185:android:51f0c58842dd8bd19a4630",
+        "android_client_info": {
+          "package_name": "com.wftech.zehouse"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "123244791185-86tl559p5ko6b6edlmkbkqvjm4tgjeeq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wftech.zehouse",
+            "certificate_hash": "0c7fa70ea7ed02ef4cd671c7663d3af2cdcf27e2"
+          }
+        },
+        {
+          "client_id": "123244791185-rqjguk66mi3nlmesmns3su2mnfhe6452.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcH95mXlmYc1k0bSPizSThx6qXWkel06o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "123244791185-rqjguk66mi3nlmesmns3su2mnfhe6452.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "123244791185-580nm03989vvv53nf38qbl1bhpnusio3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.wftech.zehouse"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
