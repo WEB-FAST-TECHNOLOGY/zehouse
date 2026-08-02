@@ -12,6 +12,7 @@ import '../../services/language_service.dart';
 import '../../services/currency_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/ad_helper.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -323,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         opacity: innerBoxIsScrolled ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 200),
         child: Text(
-          'Mon Profil',
+          tr('profile_title'),
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -507,16 +508,16 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildRoleSwitcher() {
     final roles = [
-      {'key': 'buyer', 'label': 'Acheteur', 'icon': Icons.search_rounded},
-      {'key': 'seller', 'label': 'Vendeur', 'icon': Icons.sell_rounded},
-      {'key': 'agent', 'label': 'Agent', 'icon': Icons.badge_rounded},
+      {'key': 'buyer', 'label': tr('role_buyer'), 'icon': Icons.search_rounded},
+      {'key': 'seller', 'label': tr('role_seller'), 'icon': Icons.sell_rounded},
+      {'key': 'agent', 'label': tr('role_agent'), 'icon': Icons.badge_rounded},
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Mon rôle',
+          tr('my_role'),
           style: GoogleFonts.outfit(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -605,7 +606,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             _buildStatChip(
               Icons.favorite_outline_rounded,
-              '${_savedProperties.length} favoris',
+              '${_savedProperties.length} ${tr("favorites")}',
               AppTheme.accent,
             ),
             const SizedBox(width: 8),
@@ -789,7 +790,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               children: [
                 const Icon(Icons.favorite_rounded, size: 16),
                 const SizedBox(width: 6),
-                const Text('Favoris'),
+                Text(tr('favorites_tab')),
                 const SizedBox(width: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(

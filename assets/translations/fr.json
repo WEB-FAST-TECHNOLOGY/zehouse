@@ -184,5 +184,10 @@
     "notification_permission_title": "Autoriser les notifications",
     "location_permission_title": "Autoriser la localisation",
     "gps_updating": "Mise à jour GPS en cours...",
-    "notification_new_message": "Nouveau message reçu"
+    "notification_new_message": "Nouveau message reçu",
+    "my_role": "Mon rôle",
+    "role_buyer": "Acheteur",
+    "role_seller": "Vendeur",
+    "favorites": "favoris",
+    "favorites_tab": "Favoris"
 }

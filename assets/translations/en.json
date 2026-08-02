@@ -184,5 +184,10 @@
     "notification_permission_title": "Allow notifications",
     "location_permission_title": "Allow location",
     "gps_updating": "Updating GPS...",
-    "notification_new_message": "New message received"
+    "notification_new_message": "New message received",
+    "my_role": "My role",
+    "role_buyer": "Buyer",
+    "role_seller": "Seller",
+    "favorites": "favorites",
+    "favorites_tab": "Favorites"
 }
