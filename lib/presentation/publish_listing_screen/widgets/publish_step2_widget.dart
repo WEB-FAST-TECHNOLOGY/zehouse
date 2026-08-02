@@ -41,11 +41,11 @@ class _PublishStep2WidgetState extends State<PublishStep2Widget> {
     if (video != null) {
       final file = File(video.path);
       final sizeInBytes = await file.length();
-      if (sizeInBytes > 50 * 1024 * 1024) { // 50 MB
+      if (sizeInBytes > 25 * 1024 * 1024) { // 25 MB
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('La vidéo dépasse la limite de 50 Mo.', style: GoogleFonts.outfit(color: Colors.white)),
+              content: Text('La vidéo dépasse la limite de 25 Mo.', style: GoogleFonts.outfit(color: Colors.white)),
               backgroundColor: AppTheme.error,
             ),
           );
@@ -115,7 +115,7 @@ class _PublishStep2WidgetState extends State<PublishStep2Widget> {
         _SectionTitle('Vidéo du bien (Optionnel)'),
         const SizedBox(height: 6),
         Text(
-          'Ajoutez une vidéo de visite (Max 50 Mo).',
+          'Ajoutez une vidéo de visite (Max 25 Mo).',
           style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.muted),
         ),
         const SizedBox(height: 16),
