@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../../theme/app_theme.dart';
 
-class PublishStep2Widget extends StatelessWidget {
+class PublishStep2Widget extends StatefulWidget {
   final Map<String, dynamic> formData;
   final Function(String key, dynamic value) onChanged;
 
@@ -12,26 +14,65 @@ class PublishStep2Widget extends StatelessWidget {
     required this.onChanged,
   });
 
-  // Mock photo URLs for demonstration
-  static const List<Map<String, String>> _mockPhotos = [
-    {
-      'url': 'https://images.unsplash.com/photo-1661305761966-b3056a063f7b',
-      'semanticLabel': 'Living room with modern furniture and natural light',
-    },
-    {
-      'url': 'https://images.unsplash.com/photo-1723470915155-621e10d20dfa',
-      'semanticLabel': 'Modern kitchen with white cabinets and island',
-    },
-    {
-      'url':
-          'https://img.rocket.new/generatedImages/rocket_gen_img_14bad006b-1772756965518.png',
-      'semanticLabel': 'Master bedroom with parquet floor and large windows',
-    },
-  ];
+  @override
+  State<PublishStep2Widget> createState() => _PublishStep2WidgetState();
+}
+
+class _PublishStep2WidgetState extends State<PublishStep2Widget> {
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickPhotos() async {
+    final List<XFile> images = await _picker.pickMultiImage(
+      imageQuality: 80,
+    );
+    if (images.isNotEmpty) {
+      final currentPhotos = List<XFile>.from(widget.formData['photos'] as List<XFile>);
+      currentPhotos.addAll(images);
+      widget.onChanged('photos', currentPhotos);
+      setState(() {});
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    final XFile? video = await _picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(seconds: 30),
+    );
+    if (video != null) {
+      final file = File(video.path);
+      final sizeInBytes = await file.length();
+      if (sizeInBytes > 50 * 1024 * 1024) { // 50 MB
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('La vidéo dépasse la limite de 50 Mo.', style: GoogleFonts.outfit(color: Colors.white)),
+              backgroundColor: AppTheme.error,
+            ),
+          );
+        }
+        return;
+      }
+      widget.onChanged('video', video);
+      setState(() {});
+    }
+  }
+
+  void _removePhoto(int index) {
+    final currentPhotos = List<XFile>.from(widget.formData['photos'] as List<XFile>);
+    currentPhotos.removeAt(index);
+    widget.onChanged('photos', currentPhotos);
+    setState(() {});
+  }
+
+  void _removeVideo() {
+    widget.onChanged('video', null);
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
-    final photos = formData['photos'] as List<String>;
+    final photos = widget.formData['photos'] as List<XFile>;
+    final video = widget.formData['video'] as XFile?;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,19 +96,84 @@ class PublishStep2Widget extends StatelessWidget {
             mainAxisSpacing: 8,
             childAspectRatio: 1,
           ),
-          itemCount: _mockPhotos.length + 1, // +1 for add button
+          itemCount: photos.length + 1, // +1 for add button
           itemBuilder: (context, index) {
-            if (index == _mockPhotos.length) {
-              return _AddPhotoButton(onTap: () {});
+            if (index == photos.length) {
+              return _AddMediaButton(onTap: _pickPhotos, icon: Icons.add_photo_alternate_rounded, label: 'Photos');
             }
-            return _PhotoTile(
-              imageUrl: _mockPhotos[index]['url']!,
-              semanticLabel: _mockPhotos[index]['semanticLabel']!,
+            return _PhotoTileFile(
+              file: File(photos[index].path),
               isMain: index == 0,
-              onRemove: () {},
+              onRemove: () => _removePhoto(index),
             );
           },
         ),
+
+        const SizedBox(height: 24),
+        
+        // Video section
+        _SectionTitle('Vidéo du bien (Optionnel)'),
+        const SizedBox(height: 6),
+        Text(
+          'Ajoutez une vidéo de visite (Max 50 Mo).',
+          style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.muted),
+        ),
+        const SizedBox(height: 16),
+        
+        if (video == null)
+          SizedBox(
+            width: 120,
+            height: 120,
+            child: _AddMediaButton(onTap: _pickVideo, icon: Icons.video_call_rounded, label: 'Vidéo'),
+          )
+        else
+          Stack(
+            children: [
+              Container(
+                width: double.infinity,
+                height: 150,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.video_file_rounded, size: 40, color: AppTheme.primary),
+                    const SizedBox(height: 8),
+                    Text(
+                      video.name,
+                      style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 13),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: _removeVideo,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(153),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
 
         const SizedBox(height: 8),
         Row(
@@ -97,8 +203,8 @@ class PublishStep2Widget extends StatelessWidget {
         const SizedBox(height: 16),
 
         TextFormField(
-          initialValue: formData['description'] as String,
-          onChanged: (v) => onChanged('description', v),
+          initialValue: widget.formData['description'] as String,
+          onChanged: (v) => widget.onChanged('description', v),
           maxLines: 6,
           style: GoogleFonts.outfit(
             fontSize: 14,
@@ -137,7 +243,7 @@ class PublishStep2Widget extends StatelessWidget {
         Align(
           alignment: Alignment.centerRight,
           child: Text(
-            '${(formData['description'] as String).length} / 1000 caractères',
+            '${(widget.formData['description'] as String).length} / 1000 caractères',
             style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.muted),
           ),
         ),
@@ -149,16 +255,17 @@ class PublishStep2Widget extends StatelessWidget {
         const SizedBox(height: 12),
         _FeaturesSelector(),
 
-        const SizedBox(height: 24),
       ],
     );
   }
 }
 
-class _AddPhotoButton extends StatelessWidget {
+class _AddMediaButton extends StatelessWidget {
   final VoidCallback onTap;
+  final IconData icon;
+  final String label;
 
-  const _AddPhotoButton({required this.onTap});
+  const _AddMediaButton({required this.onTap, required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -174,13 +281,13 @@ class _AddPhotoButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.add_photo_alternate_rounded,
+              icon,
               size: 28,
               color: AppTheme.primary,
             ),
             const SizedBox(height: 4),
             Text(
-              'Ajouter',
+              label,
               style: GoogleFonts.outfit(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -194,15 +301,13 @@ class _AddPhotoButton extends StatelessWidget {
   }
 }
 
-class _PhotoTile extends StatelessWidget {
-  final String imageUrl;
-  final String semanticLabel;
+class _PhotoTileFile extends StatelessWidget {
+  final File file;
   final bool isMain;
   final VoidCallback onRemove;
 
-  const _PhotoTile({
-    required this.imageUrl,
-    required this.semanticLabel,
+  const _PhotoTileFile({
+    required this.file,
     required this.isMain,
     required this.onRemove,
   });
@@ -213,17 +318,14 @@ class _PhotoTile extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Semantics(
-            label: semanticLabel,
-            child: Image.network(
-              imageUrl,
-              width: double.infinity,
-              height: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: AppTheme.surfaceVariant,
-                child: Icon(Icons.image_outlined, color: AppTheme.muted),
-              ),
+          child: Image.file(
+            file,
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              color: AppTheme.surfaceVariant,
+              child: Icon(Icons.image_outlined, color: AppTheme.muted),
             ),
           ),
         ),

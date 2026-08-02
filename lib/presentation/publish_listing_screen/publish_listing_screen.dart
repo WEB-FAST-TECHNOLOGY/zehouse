@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
+import 'dart:io';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
@@ -38,7 +41,8 @@ class _PublishListingScreenState extends State<PublishListingScreen>
     'floor': '0',
     'energyClass': 'C',
     'description': '',
-    'photos': <String>[],
+    'photos': <XFile>[],
+    'video': null, // XFile?
     'address': '',
     'city': '',
     'zipCode': '',
@@ -126,10 +130,74 @@ class _PublishListingScreenState extends State<PublishListingScreen>
       _showPaymentGate = false;
       _isLoading = true;
     });
-    await Future.delayed(const Duration(milliseconds: 1500));
-    if (mounted) {
-      setState(() => _isLoading = false);
-      _showSuccessDialog();
+    
+    try {
+      final user = SupabaseService.instance.client.auth.currentUser;
+      if (user == null) throw Exception('Non connecté');
+
+      final photos = _formData['photos'] as List<XFile>;
+      final video = _formData['video'] as XFile?;
+      
+      String mainImageUrl = '';
+      String videoUrl = '';
+      final uuid = const Uuid().v4();
+
+      // Upload main photo (for now we only save the first photo URL as image_url in DB)
+      if (photos.isNotEmpty) {
+        final ext = photos.first.path.split('.').last;
+        final path = '${user.id}/$uuid/main.$ext';
+        await SupabaseService.instance.client.storage
+            .from('listings_media')
+            .upload(path, File(photos.first.path));
+        mainImageUrl = SupabaseService.instance.client.storage
+            .from('listings_media')
+            .getPublicUrl(path);
+      }
+
+      // Upload video if present
+      if (video != null) {
+        final ext = video.path.split('.').last;
+        final path = '${user.id}/$uuid/video.$ext';
+        await SupabaseService.instance.client.storage
+            .from('listings_media')
+            .upload(path, File(video.path));
+        videoUrl = SupabaseService.instance.client.storage
+            .from('listings_media')
+            .getPublicUrl(path);
+      }
+
+      // Insert into database
+      await SupabaseService.instance.client.from('user_listings').insert({
+        'user_id': user.id,
+        'title': _formData['title'],
+        'description': _formData['description'],
+        'price': int.tryParse(_formData['price']) ?? 0,
+        'surface': double.tryParse(_formData['surface']) ?? 0.0,
+        'rooms': int.tryParse(_formData['rooms']) ?? 1,
+        'listing_type': _formData['listingType'],
+        'property_type': _formData['propertyType'],
+        'address': _formData['address'],
+        'image_url': mainImageUrl,
+        'video_url': videoUrl,
+        // Optional: generate random coordinates for demo
+        'lat': 48.8566 + (DateTime.now().millisecond % 100) / 10000,
+        'lng': 2.3522 + (DateTime.now().millisecond % 100) / 10000,
+      });
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSuccessDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la publication : $e', style: GoogleFonts.outfit(color: Colors.white)),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
     }
   }
 
