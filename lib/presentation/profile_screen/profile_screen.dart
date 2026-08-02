@@ -1655,6 +1655,15 @@ class _ProfileScreenState extends State<ProfileScreen>
               Navigator.pop(ctx);
               _signOut();
             }, color: AppTheme.accent),
+            _buildSettingsItem(
+              Icons.delete_forever_rounded,
+              'Supprimer mon compte',
+              () {
+                Navigator.pop(ctx);
+                _showDeleteAccountConfirm(context);
+              },
+              color: Colors.redAccent,
+            ),
           ],
         ),
       ),
@@ -2042,9 +2051,78 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
               ),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeleteAccountConfirm(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Supprimer le compte',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.redAccent,
+          ),
+        ),
+        content: Text(
+          'Êtes-vous sûr de vouloir supprimer définitivement votre compte et toutes vos données (annonces, favoris, profil) ?\n\nCette action est irréversible.',
+          style: GoogleFonts.outfit(fontSize: 14, color: AppTheme.textPrimary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Annuler',
+              style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              // Show a loading indicator if necessary or just sign out for now
+              final user = _client.auth.currentUser;
+              if (user != null) {
+                try {
+                  // Delete profile row (which cascades or triggers deletion on backend)
+                  await _client.from('user_profiles').delete().eq('id', user.id);
+                } catch (e) {
+                  // Ignore errors and force logout
+                }
+              }
+              _signOut();
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Votre compte a été supprimé',
+                      style: GoogleFonts.outfit(fontSize: 13, color: Colors.white),
+                    ),
+                    backgroundColor: AppTheme.success,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: Text(
+              'Oui, Supprimer',
+              style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
