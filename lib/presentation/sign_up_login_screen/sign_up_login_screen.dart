@@ -5,11 +5,13 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../env.dart';
 import '../../core/app_export.dart';
 import '../../services/language_service.dart';
 import './widgets/auth_form_widget.dart';
 import './widgets/auth_role_selector_widget.dart';
 import './widgets/auth_social_buttons_widget.dart';
+import './widgets/google_profile_completion_screen.dart';
 
 class SignUpLoginScreen extends StatefulWidget {
   const SignUpLoginScreen({super.key});
@@ -285,6 +287,7 @@ class _SignUpLoginScreenState extends State<SignUpLoginScreen>
       _isGoogleLoading = true;
       _errorMessage = null;
     });
+
     try {
       if (kIsWeb) {
         await _client.auth.signInWithOAuth(
@@ -292,7 +295,7 @@ class _SignUpLoginScreenState extends State<SignUpLoginScreen>
           redirectTo: 'https://zehouse2471.builtwithrocket.new',
         );
       } else {
-        const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+        final webClientId = Env.googleWebClientId;
         final googleSignIn = GoogleSignIn(serverClientId: webClientId);
         GoogleSignInAccount? user = await googleSignIn.signInSilently();
         user ??= await googleSignIn.signIn();
@@ -317,30 +320,44 @@ class _SignUpLoginScreenState extends State<SignUpLoginScreen>
                 .eq('id', response.user!.id)
                 .maybeSingle();
 
-            if (profile == null) {
-              final fullName = response.user!.userMetadata?['full_name'] as String? ?? '';
-              final avatarUrl = response.user!.userMetadata?['avatar_url'] as String? ?? '';
+            if (!mounted) return;
 
-              await _client.from('user_profiles').insert({
-                'id': response.user!.id,
-                'email': response.user!.email ?? '',
-                'full_name': fullName,
-                'avatar_url': avatarUrl,
-                'role': _selectedRole,
-                'phone': '',
-                'is_verified': false,
-              });
+            if (profile == null) {
+              // NEW USER → redirect to profile completion screen
+              final googleFullName =
+                  response.user!.userMetadata?['full_name'] as String? ?? '';
+              final googleAvatarUrl =
+                  response.user!.userMetadata?['avatar_url'] as String? ?? '';
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GoogleProfileCompletionScreen(
+                    googleFullName: googleFullName,
+                    googleAvatarUrl: googleAvatarUrl,
+                    userId: response.user!.id,
+                    email: response.user!.email ?? '',
+                  ),
+                ),
+              );
+            } else {
+              // EXISTING USER → go directly to map
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRoutes.mapScreen,
+                (route) => false,
+              );
             }
           } catch (profileError) {
-            debugPrint('[Google Sign-In Profile Creation Error]: $profileError');
-          }
-
-          if (mounted) {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRoutes.mapScreen,
-              (route) => false,
-            );
+            debugPrint('[Google Sign-In Profile Check Error]: $profileError');
+            // On error, navigate to map as fallback
+            if (mounted) {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRoutes.mapScreen,
+                (route) => false,
+              );
+            }
           }
         }
       }

@@ -1,48 +1,41 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:zehouse/services/supabase_service.dart';
 
 enum SubscriptionPlan {
   none,
-  hotel,
-  appartement,
-  agent,
-  architecte,
-  plombier,
-  electricien,
-  macon,
-  peintre,
-  menuisier,
-  carreleur,
-  couvreur,
-  serrurier,
-  chauffagiste,
-  decorateur,
-  soudeur,
-  charpentier,
-  ferrailleur,
-  professionnel,
+  plus,
+  pro,
+  ultra,
 }
+
+enum BillingCycle { monthly, yearly }
 
 enum SubscriptionStatus { inactive, trial, active, expired }
 
 class SubscriptionInfo {
   final SubscriptionPlan plan;
+  final BillingCycle billingCycle;
   final SubscriptionStatus status;
   final DateTime? startDate;
   final DateTime? trialEndDate;
   final DateTime? expiryDate;
   final String? transactionId;
   final bool sponsoredListings;
+  final bool hasUsedTrial;
 
   const SubscriptionInfo({
     required this.plan,
+    this.billingCycle = BillingCycle.monthly,
     required this.status,
     this.startDate,
     this.trialEndDate,
     this.expiryDate,
     this.transactionId,
     this.sponsoredListings = false,
+    this.hasUsedTrial = false,
   });
 
   bool get isActive =>
@@ -62,46 +55,42 @@ class SubscriptionInfo {
     return 0;
   }
 
+  int get maxListings {
+    switch (plan) {
+      case SubscriptionPlan.ultra:
+        return 999999; // Unlimited
+      case SubscriptionPlan.pro:
+        return 100;
+      case SubscriptionPlan.plus:
+        return 30;
+      case SubscriptionPlan.none:
+        return SubscriptionService.freeTierMaxListings; // 10
+    }
+  }
+
+  bool canPublishWithoutFee(int currentListingsCount) {
+    if (plan == SubscriptionPlan.none && currentListingsCount < SubscriptionService.freeTierMaxListings) return true; // Free tier
+    if (isActive && currentListingsCount < maxListings) return true; // Paid or trial
+    return false; // Limit reached or inactive
+  }
+
+  bool get shouldShowAds {
+    if (status == SubscriptionStatus.active && plan != SubscriptionPlan.none) {
+      return false; // Paid active subscription -> NO ADS
+    }
+    return true; // Trial, expired, inactive, or none -> SHOW ADS
+  }
+
   String get planLabel {
     switch (plan) {
-      case SubscriptionPlan.hotel:
-        return 'Hôtel';
-      case SubscriptionPlan.appartement:
-        return 'Appartement Meublé';
-      case SubscriptionPlan.agent:
-        return 'Agent Immobilier';
-      case SubscriptionPlan.architecte:
-        return 'Architecte';
-      case SubscriptionPlan.plombier:
-        return 'Plombier';
-      case SubscriptionPlan.electricien:
-        return 'Électricien';
-      case SubscriptionPlan.macon:
-        return 'Maçon';
-      case SubscriptionPlan.peintre:
-        return 'Peintre';
-      case SubscriptionPlan.menuisier:
-        return 'Menuisier';
-      case SubscriptionPlan.carreleur:
-        return 'Carreleur';
-      case SubscriptionPlan.couvreur:
-        return 'Couvreur';
-      case SubscriptionPlan.serrurier:
-        return 'Serrurier';
-      case SubscriptionPlan.chauffagiste:
-        return 'Chauffagiste';
-      case SubscriptionPlan.decorateur:
-        return 'Décorateur';
-      case SubscriptionPlan.soudeur:
-        return 'Soudeur';
-      case SubscriptionPlan.charpentier:
-        return 'Charpentier';
-      case SubscriptionPlan.ferrailleur:
-        return 'Ferrailleur';
-      case SubscriptionPlan.professionnel:
-        return 'Professionnel';
+      case SubscriptionPlan.plus:
+        return 'ZEHOUSE Plus+';
+      case SubscriptionPlan.pro:
+        return 'ZEHOUSE Pro';
+      case SubscriptionPlan.ultra:
+        return 'ZEHOUSE Ultra';
       case SubscriptionPlan.none:
-        return 'Aucun';
+        return 'Standard (Gratuit)';
     }
   }
 
@@ -120,12 +109,14 @@ class SubscriptionInfo {
 
   Map<String, dynamic> toJson() => {
     'plan': plan.name,
+    'billingCycle': billingCycle.name,
     'status': status.name,
     'startDate': startDate?.toIso8601String(),
     'trialEndDate': trialEndDate?.toIso8601String(),
     'expiryDate': expiryDate?.toIso8601String(),
     'transactionId': transactionId,
     'sponsoredListings': sponsoredListings,
+    'hasUsedTrial': hasUsedTrial,
   };
 
   factory SubscriptionInfo.fromJson(Map<String, dynamic> json) {
@@ -133,6 +124,10 @@ class SubscriptionInfo {
       plan: SubscriptionPlan.values.firstWhere(
         (e) => e.name == json['plan'],
         orElse: () => SubscriptionPlan.none,
+      ),
+      billingCycle: BillingCycle.values.firstWhere(
+        (e) => e.name == json['billingCycle'],
+        orElse: () => BillingCycle.monthly,
       ),
       status: SubscriptionStatus.values.firstWhere(
         (e) => e.name == json['status'],
@@ -149,12 +144,14 @@ class SubscriptionInfo {
           : null,
       transactionId: json['transactionId'],
       sponsoredListings: json['sponsoredListings'] as bool? ?? false,
+      hasUsedTrial: json['hasUsedTrial'] as bool? ?? false,
     );
   }
 
   static SubscriptionInfo get empty => const SubscriptionInfo(
     plan: SubscriptionPlan.none,
     status: SubscriptionStatus.inactive,
+    hasUsedTrial: false,
   );
 }
 
@@ -194,7 +191,45 @@ class SubscriptionService {
         final json = jsonDecode(raw) as Map<String, dynamic>;
         _current = SubscriptionInfo.fromJson(json);
         _current = _checkExpiry(_current);
+        
+        // Sync with Supabase to prevent local clearing abuse
+        try {
+          final user = SupabaseService.instance.client.auth.currentUser;
+          if (user != null) {
+            final hasUsedTrialMetadata = user.userMetadata?['hasUsedTrial'] as bool? ?? false;
+            if (hasUsedTrialMetadata && !_current.hasUsedTrial) {
+              _current = SubscriptionInfo(
+                plan: _current.plan,
+                billingCycle: _current.billingCycle,
+                status: _current.status,
+                startDate: _current.startDate,
+                trialEndDate: _current.trialEndDate,
+                expiryDate: _current.expiryDate,
+                transactionId: _current.transactionId,
+                sponsoredListings: _current.sponsoredListings,
+                hasUsedTrial: true,
+              );
+            }
+          }
+        } catch (_) {}
+
         await _save();
+      } else {
+        // No local data, check Supabase
+        try {
+          final user = SupabaseService.instance.client.auth.currentUser;
+          if (user != null) {
+            final hasUsedTrialMetadata = user.userMetadata?['hasUsedTrial'] as bool? ?? false;
+            if (hasUsedTrialMetadata) {
+              _current = SubscriptionInfo(
+                plan: SubscriptionPlan.none,
+                status: SubscriptionStatus.inactive,
+                hasUsedTrial: true,
+              );
+              await _save();
+            }
+          }
+        } catch (_) {}
       }
     } catch (_) {}
   }
@@ -206,12 +241,14 @@ class SubscriptionService {
         now.isAfter(info.trialEndDate!)) {
       return SubscriptionInfo(
         plan: info.plan,
+        billingCycle: info.billingCycle,
         status: SubscriptionStatus.expired,
         startDate: info.startDate,
         trialEndDate: info.trialEndDate,
         expiryDate: info.expiryDate,
         transactionId: info.transactionId,
         sponsoredListings: info.sponsoredListings,
+        hasUsedTrial: info.hasUsedTrial,
       );
     }
     if (info.status == SubscriptionStatus.active &&
@@ -219,12 +256,14 @@ class SubscriptionService {
         now.isAfter(info.expiryDate!)) {
       return SubscriptionInfo(
         plan: info.plan,
+        billingCycle: info.billingCycle,
         status: SubscriptionStatus.expired,
         startDate: info.startDate,
         trialEndDate: info.trialEndDate,
         expiryDate: info.expiryDate,
         transactionId: info.transactionId,
         sponsoredListings: info.sponsoredListings,
+        hasUsedTrial: info.hasUsedTrial,
       );
     }
     return info;
@@ -244,44 +283,66 @@ class SubscriptionService {
     final now = DateTime.now();
     _current = SubscriptionInfo(
       plan: plan,
+      billingCycle: _current.billingCycle, // trial doesn't dictate cycle really, but keep current
       status: SubscriptionStatus.trial,
       startDate: now,
-      trialEndDate: now.add(const Duration(days: 40)),
+      trialEndDate: now.add(const Duration(days: 30)),
       expiryDate: null,
       transactionId: null,
       sponsoredListings: sponsored,
+      hasUsedTrial: true,
     );
     await _save();
+    
+    // Persist to Supabase metadata to prevent abuse
+    try {
+      await SupabaseService.instance.client.auth.updateUser(
+        UserAttributes(data: {'hasUsedTrial': true}),
+      );
+    } catch (_) {}
+
     _notify();
   }
 
   Future<void> activatePaidSubscription(
     SubscriptionPlan plan,
-    String transactionId, {
+    String transactionId,
+    BillingCycle billingCycle, {
     bool sponsored = false,
   }) async {
     final now = DateTime.now();
+    final expiry = billingCycle == BillingCycle.yearly
+        ? now.add(const Duration(days: 365))
+        : now.add(const Duration(days: 30));
+
     _current = SubscriptionInfo(
       plan: plan,
+      billingCycle: billingCycle,
       status: SubscriptionStatus.active,
       startDate: now,
       trialEndDate: null,
-      expiryDate: now.add(const Duration(days: 365)),
+      expiryDate: expiry,
       transactionId: transactionId,
       sponsoredListings: sponsored,
+      hasUsedTrial: _current.hasUsedTrial,
     );
     await _save();
     _notify();
   }
 
   Future<void> cancelSubscription() async {
-    _current = SubscriptionInfo.empty;
+    _current = SubscriptionInfo(
+      plan: SubscriptionPlan.none,
+      status: SubscriptionStatus.inactive,
+      hasUsedTrial: _current.hasUsedTrial,
+    );
     await _save();
     _notify();
   }
 
   bool canPublishListing(SubscriptionPlan requiredPlan) {
     if (!_current.isActive) return false;
+    if (_current.plan == SubscriptionPlan.ultra) return true; // Ultra has all
     if (_current.plan == requiredPlan) return true;
     return false;
   }

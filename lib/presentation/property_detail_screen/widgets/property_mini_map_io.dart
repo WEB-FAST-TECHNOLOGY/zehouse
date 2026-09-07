@@ -3,13 +3,15 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../../../theme/app_theme.dart';
 import '../../../services/mapbox_service.dart';
 
-Widget buildMiniMap({required String address}) {
-  return _MapboxMiniMap(address: address);
+Widget buildMiniMap({required String address, double? lat, double? lng}) {
+  return _MapboxMiniMap(address: address, lat: lat, lng: lng);
 }
 
 class _MapboxMiniMap extends StatefulWidget {
   final String address;
-  const _MapboxMiniMap({required this.address});
+  final double? lat;
+  final double? lng;
+  const _MapboxMiniMap({required this.address, this.lat, this.lng});
 
   @override
   State<_MapboxMiniMap> createState() => _MapboxMiniMapState();
@@ -27,8 +29,8 @@ class _MapboxMiniMapState extends State<_MapboxMiniMap> {
         PointAnnotationOptions(
           geometry: Point(
             coordinates: Position(
-              MapboxService.defaultLng,
-              MapboxService.defaultLat,
+              widget.lng ?? MapboxService.defaultLng,
+              widget.lat ?? MapboxService.defaultLat,
             ),
           ),
           iconSize: 1.5,
@@ -55,8 +57,8 @@ class _MapboxMiniMapState extends State<_MapboxMiniMap> {
               viewport: CameraViewportState(
                 center: Point(
                   coordinates: Position(
-                    MapboxService.defaultLng,
-                    MapboxService.defaultLat,
+                    widget.lng ?? MapboxService.defaultLng,
+                    widget.lat ?? MapboxService.defaultLat,
                   ),
                 ),
                 zoom: MapboxService.miniMapZoom,

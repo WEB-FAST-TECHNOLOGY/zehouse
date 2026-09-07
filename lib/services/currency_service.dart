@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/supabase_service.dart';
 
 class CurrencyModel {
   final String code;
@@ -43,6 +44,17 @@ class CurrencyService extends ChangeNotifier {
     _currentCode = code;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefKey, code);
+
+    try {
+      final user = SupabaseService.instance.client.auth.currentUser;
+      if (user != null) {
+        await SupabaseService.instance.client
+            .from('user_profiles')
+            .update({'currency_code': code})
+            .eq('id', user.id);
+      }
+    } catch (_) {}
+
     notifyListeners();
   }
 
@@ -55,16 +67,26 @@ class CurrencyService extends ChangeNotifier {
   String format(num priceInEur, {bool isRent = false}) {
     final converted = convert(priceInEur);
     final currency = currentCurrency;
-    final suffix = isRent ? '/mois' : '';
+    final suffix = isRent ? ' / mois' : '';
 
+    String formattedNumber;
     if (converted >= 1000000) {
-      final m = (converted / 1000000).toStringAsFixed(1);
-      return '${currency.symbol}${m}M$suffix';
-    } else if (converted >= 1000) {
-      final k = (converted / 1000).toStringAsFixed(0);
-      return '${currency.symbol}${k}k$suffix';
+      // Use M for millions
+      formattedNumber = '${(converted / 1000000).toStringAsFixed(2).replaceAll('.', ',')} M';
     } else {
-      return '${currency.symbol}${converted.toStringAsFixed(0)}$suffix';
+      // Format with spaces for thousands
+      formattedNumber = converted.toStringAsFixed(0).replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]} ',
+      );
+    }
+
+    // Usually FCFA/CFA are placed at the end, while $, €, £ are at the beginning or end depending on locale.
+    // For simplicity, let's put the symbol after the number if it's CFA/FCFA/MAD, else before.
+    if (currency.code == 'XOF' || currency.code == 'XAF' || currency.code == 'MAD') {
+      return '$formattedNumber ${currency.symbol}$suffix';
+    } else {
+      return '${currency.symbol}$formattedNumber$suffix';
     }
   }
 
@@ -72,10 +94,17 @@ class CurrencyService extends ChangeNotifier {
   String formatPerM2(num pricePerM2InEur) {
     final converted = convert(pricePerM2InEur);
     final currency = currentCurrency;
-    if (converted >= 1000) {
-      return '${currency.symbol}${(converted / 1000).toStringAsFixed(1)}k/m²';
+    
+    String formattedNumber = converted.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]} ',
+    );
+
+    if (currency.code == 'XOF' || currency.code == 'XAF' || currency.code == 'MAD') {
+      return '$formattedNumber ${currency.symbol}/m²';
+    } else {
+      return '${currency.symbol}$formattedNumber/m²';
     }
-    return '${currency.symbol}${converted.toStringAsFixed(0)}/m²';
   }
 
   static const List<CurrencyModel> allCurrencies = [

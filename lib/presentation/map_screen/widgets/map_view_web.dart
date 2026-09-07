@@ -4,6 +4,7 @@ import 'dart:ui_web' as ui;
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../services/mapbox_service.dart';
+import '../../../services/currency_service.dart';
 
 Widget buildMapView({
   required List<Map<String, dynamic>> properties,
@@ -117,11 +118,7 @@ class _WebMapboxViewState extends State<_WebMapboxView> {
               final isSelected = widget.selectedIndex == index;
               final isRent = p['listingType'] == 'rent';
               final price = p['price'] as int;
-              final priceLabel = isRent
-                  ? '${price.toString()}€/m'
-                  : price >= 1000000
-                  ? '${(price / 1000000).toStringAsFixed(1)}M€'
-                  : '${(price / 1000).toStringAsFixed(0)}k€';
+              final priceLabel = CurrencyService.instance.format(price, isRent: isRent);
 
               final positions = [
                 const Offset(0.38, 0.32),

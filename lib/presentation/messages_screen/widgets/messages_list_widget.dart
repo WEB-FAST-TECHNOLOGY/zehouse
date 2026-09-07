@@ -85,12 +85,13 @@ class _ConversationTile extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(100),
                     child: CustomImageWidget(
-                      imageUrl: conversation['avatarUrl'] as String,
+                      imageUrl: conversation['avatarUrl'] as String?,
+                      name: conversation['contactName'] as String?,
                       width: 52,
                       height: 52,
                       fit: BoxFit.cover,
                       semanticLabel:
-                          conversation['avatarSemanticLabel'] as String,
+                          conversation['avatarSemanticLabel'] as String?,
                     ),
                   ),
                   if (isOnline)
@@ -104,6 +105,27 @@ class _ConversationTile extends StatelessWidget {
                           color: AppTheme.success,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                  if (conversation['contactRole'] == 'professional' || conversation['contactRole'] == 'agent')
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accent,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: Text(
+                          'PRO',
+                          style: GoogleFonts.outfit(
+                            fontSize: 7,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),

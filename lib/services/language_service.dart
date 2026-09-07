@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/supabase_service.dart';
 
 class LanguageModel {
   final String code;
@@ -67,6 +68,16 @@ class LanguageService extends ChangeNotifier {
         await _context!.setLocale(Locale(translationCode));
       } catch (_) {}
     }
+
+    try {
+      final user = SupabaseService.instance.client.auth.currentUser;
+      if (user != null) {
+        await SupabaseService.instance.client
+            .from('user_profiles')
+            .update({'language_code': code})
+            .eq('id', user.id);
+      }
+    } catch (_) {}
 
     notifyListeners();
   }

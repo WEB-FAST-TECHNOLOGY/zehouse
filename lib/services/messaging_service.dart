@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:zehouse/core/app_export.dart';
 
 import './supabase_service.dart';
 
@@ -152,6 +153,8 @@ class MessagingService {
   static MessagingService get instance => _instance ??= MessagingService._();
   MessagingService._();
 
+  final ValueNotifier<int> totalUnreadCount = ValueNotifier<int>(0);
+  
   SupabaseClient get _client => SupabaseService.instance.client;
 
   String? get currentUserId => _client.auth.currentUser?.id;
@@ -172,8 +175,10 @@ class MessagingService {
         .order('last_message_at', ascending: false);
 
     final List<ConversationModel> conversations = [];
+    int totalUnread = 0;
     for (final row in data as List) {
       final unread = await _countUnread(row['id'] as String);
+      totalUnread += unread;
       conversations.add(
         ConversationModel.fromJson(
           row as Map<String, dynamic>,
@@ -182,6 +187,7 @@ class MessagingService {
         ),
       );
     }
+    totalUnreadCount.value = totalUnread;
     return conversations;
   }
 

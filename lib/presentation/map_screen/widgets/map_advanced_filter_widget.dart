@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_theme.dart';
+import '../../../services/currency_service.dart';
 
 class MapFilterState {
   final RangeValues priceRange;
@@ -125,9 +126,7 @@ class _MapAdvancedFilterWidgetState extends State<MapAdvancedFilterWidget> {
   }
 
   String _formatPrice(double value) {
-    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M€';
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k€';
-    return '${value.toStringAsFixed(0)}€';
+    return CurrencyService.instance.format(value);
   }
 
   @override

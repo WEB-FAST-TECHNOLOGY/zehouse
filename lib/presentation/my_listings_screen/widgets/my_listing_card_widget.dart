@@ -181,8 +181,11 @@ class MyListingCardWidget extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   // Price + surface
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    runSpacing: 4,
+                    spacing: 8,
                     children: [
                       Text(
                         priceText,
@@ -194,6 +197,7 @@ class MyListingCardWidget extends StatelessWidget {
                         ),
                       ),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.straighten_rounded,
@@ -218,23 +222,30 @@ class MyListingCardWidget extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   // Stats row
-                  Row(
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.spaceBetween,
                     children: [
-                      _StatChip(
-                        icon: Icons.visibility_rounded,
-                        value: '${listing['views']}',
-                        label: 'vues',
+                      Wrap(
+                        spacing: 12,
+                        children: [
+                          _StatChip(
+                            icon: Icons.visibility_rounded,
+                            value: '${listing['views']}',
+                            label: 'vues',
+                          ),
+                          _StatChip(
+                            icon: Icons.chat_bubble_rounded,
+                            value: '${listing['contacts']}',
+                            label: 'contacts',
+                            highlight: (listing['contacts'] as int) > 5,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      _StatChip(
-                        icon: Icons.chat_bubble_rounded,
-                        value: '${listing['contacts']}',
-                        label: 'contacts',
-                        highlight: (listing['contacts'] as int) > 5,
-                      ),
-                      const Spacer(),
                       if ((listing['daysActive'] as int) > 0)
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.schedule_rounded,

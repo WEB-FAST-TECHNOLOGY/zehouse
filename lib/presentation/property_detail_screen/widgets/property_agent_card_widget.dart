@@ -49,11 +49,12 @@ class PropertyAgentCardWidget extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(100),
                     child: CustomImageWidget(
-                      imageUrl: agent['avatar'] as String,
+                      imageUrl: agent['avatar'] as String?,
+                      name: agent['name'] as String?,
                       width: 56,
                       height: 56,
                       fit: BoxFit.cover,
-                      semanticLabel: agent['avatarSemanticLabel'] as String,
+                      semanticLabel: agent['avatarSemanticLabel'] as String?,
                     ),
                   ),
                   const SizedBox(width: 14),

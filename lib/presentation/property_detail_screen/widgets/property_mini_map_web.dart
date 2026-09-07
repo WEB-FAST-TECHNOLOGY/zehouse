@@ -3,7 +3,7 @@ import '../../../theme/app_theme.dart';
 import '../../../services/mapbox_service.dart';
 
 /// Web stub — Mapbox is not supported on web.
-Widget buildMiniMap({required String address}) {
+Widget buildMiniMap({required String address, double? lat, double? lng}) {
   return _SimulatedMiniMap(address: address);
 }
 

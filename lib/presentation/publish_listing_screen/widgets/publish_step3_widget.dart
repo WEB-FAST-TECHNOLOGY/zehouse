@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../theme/app_theme.dart';
 import '../../../services/currency_service.dart';
+import '../../../services/mapbox_service.dart';
+import '../../property_detail_screen/widgets/property_mini_map_widget.dart';
 
-class PublishStep3Widget extends StatelessWidget {
+class PublishStep3Widget extends StatefulWidget {
   final Map<String, dynamic> formData;
   final Function(String key, dynamic value) onChanged;
 
@@ -14,6 +17,92 @@ class PublishStep3Widget extends StatelessWidget {
     required this.formData,
     required this.onChanged,
   });
+
+  @override
+  State<PublishStep3Widget> createState() => _PublishStep3WidgetState();
+}
+
+class _PublishStep3WidgetState extends State<PublishStep3Widget> {
+  bool _isLocating = false;
+  bool _searchLocal = false; // Default to global, switch enables local
+  Position? _biasPosition;
+  Key _addressKey = UniqueKey();
+  
+  late TextEditingController _cityController;
+  late TextEditingController _zipCodeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _cityController = TextEditingController(text: widget.formData['city'] as String? ?? '');
+    _zipCodeController = TextEditingController(text: widget.formData['zipCode'] as String? ?? '');
+    _initLocationBias();
+  }
+
+  @override
+  void dispose() {
+    _cityController.dispose();
+    _zipCodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initLocationBias() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        _biasPosition = await Geolocator.getLastKnownPosition() ?? await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _useCurrentLocation() async {
+    setState(() => _isLocating = true);
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        setState(() => _isLocating = false);
+        return;
+      }
+      
+      final position = await Geolocator.getCurrentPosition();
+      _biasPosition = position;
+      _searchLocal = true;
+      final data = await MapboxService.reverseGeocode(position.latitude, position.longitude);
+      
+      if (data != null && mounted) {
+        widget.onChanged('address', data['address'] ?? '');
+        widget.onChanged('city', data['city'] ?? '');
+        widget.onChanged('zipCode', data['zipCode'] ?? '');
+        widget.onChanged('lat', data['lat']);
+        widget.onChanged('lng', data['lng']);
+        
+        _cityController.text = data['city'] ?? '';
+        _zipCodeController.text = data['zipCode'] ?? '';
+        _addressKey = UniqueKey(); // Force rebuild Autocomplete
+      }
+    } catch (e) {
+      debugPrint('Location error: $e');
+    }
+    if (mounted) setState(() => _isLocating = false);
+  }
+
+  Future<void> _toggleSearchLocal(bool value) async {
+    setState(() => _searchLocal = value);
+    if (value && _biasPosition == null) {
+      try {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+          _biasPosition = await Geolocator.getCurrentPosition();
+        }
+      } catch (_) {}
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,14 +115,156 @@ class PublishStep3Widget extends StatelessWidget {
           'L\'adresse exacte ne sera visible qu\'aux acheteurs/locataires intéressés.',
           style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.muted),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
 
-        _buildTextField(
-          label: 'Numéro et rue',
-          hint: 'ex. 12 Rue de la Paix',
-          initialValue: formData['address'] as String,
-          onChanged: (v) => onChanged('address', v),
-          icon: Icons.home_outlined,
+        // Toggle Local Search
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text('Privilégier les résultats près de moi', style: GoogleFonts.outfit(fontSize: 14)),
+          subtitle: Text('Recherche locale vs. mondiale', style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary)),
+          value: _searchLocal,
+          activeColor: AppTheme.primary,
+          onChanged: _toggleSearchLocal,
+        ),
+        const SizedBox(height: 8),
+
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _isLocating ? null : _useCurrentLocation,
+                icon: _isLocating 
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location_rounded, size: 18),
+                label: const Text('Utiliser ma position actuelle'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary.withAlpha(25),
+                  foregroundColor: AppTheme.primary,
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        Autocomplete<Map<String, dynamic>>(
+          key: _addressKey,
+          initialValue: TextEditingValue(text: widget.formData['address'] as String? ?? ''),
+          optionsBuilder: (TextEditingValue textEditingValue) async {
+            if (textEditingValue.text.isEmpty || textEditingValue.text.length < 3) {
+              return const Iterable<Map<String, dynamic>>.empty();
+            }
+            String? proximity;
+            if (_searchLocal && _biasPosition != null) {
+              proximity = '${_biasPosition!.longitude},${_biasPosition!.latitude}';
+            }
+            return await MapboxService.searchPlaces(textEditingValue.text, proximity: proximity);
+          },
+          displayStringForOption: (Map<String, dynamic> option) => option['place_name'] ?? '',
+          onSelected: (Map<String, dynamic> selection) {
+            String address = selection['text'] ?? '';
+            if (selection['address'] != null) {
+              address = '${selection['address']} $address';
+            }
+            
+            String city = '';
+            String zipCode = '';
+            
+            final contextList = selection['context'] as List?;
+            if (contextList != null) {
+              for (final ctx in contextList) {
+                final id = ctx['id'] as String? ?? '';
+                if (id.startsWith('place')) city = ctx['text'] ?? '';
+                if (id.startsWith('postcode')) zipCode = ctx['text'] ?? '';
+              }
+            }
+
+            // Fallback for city
+            if (city.isEmpty && selection['place_type'] != null) {
+              final placeTypes = (selection['place_type'] as List).cast<String>();
+              if (placeTypes.contains('place')) {
+                city = selection['text'] ?? '';
+              }
+            }
+
+            widget.onChanged('address', address);
+            if (city.isNotEmpty) {
+              widget.onChanged('city', city);
+              _cityController.text = city;
+            }
+            if (zipCode.isNotEmpty) {
+              widget.onChanged('zipCode', zipCode);
+              _zipCodeController.text = zipCode;
+            }
+
+            // Coordinates
+            if (selection['geometry'] != null) {
+              final coords = selection['geometry']['coordinates'] as List?;
+              if (coords != null && coords.length >= 2) {
+                widget.onChanged('lng', coords[0]);
+                widget.onChanged('lat', coords[1]);
+              }
+            }
+          },
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            return TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              onChanged: (v) => widget.onChanged('address', v),
+              style: GoogleFonts.outfit(fontSize: 15, color: AppTheme.textPrimary),
+              decoration: InputDecoration(
+                labelText: 'Numéro et rue',
+                hintText: 'ex. 12 Rue de la Paix',
+                prefixIcon: Icon(Icons.home_outlined, size: 18, color: AppTheme.muted),
+                labelStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.muted),
+                border: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.border)),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.border)),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary, width: 2)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: 250,
+                    maxWidth: MediaQuery.of(context).size.width - 32,
+                  ),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final option = options.elementAt(index);
+                      return ListTile(
+                        leading: Icon(Icons.location_on_outlined, color: AppTheme.primary),
+                        title: Text(
+                          option['text'] ?? '',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Text(
+                          option['place_name'] ?? '',
+                          style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => onSelected(option),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 20),
 
@@ -44,8 +275,8 @@ class PublishStep3Widget extends StatelessWidget {
               child: _buildTextField(
                 label: 'Ville',
                 hint: 'Paris',
-                initialValue: formData['city'] as String,
-                onChanged: (v) => onChanged('city', v),
+                controller: _cityController,
+                onChanged: (v) => widget.onChanged('city', v),
                 icon: Icons.location_city_rounded,
               ),
             ),
@@ -54,14 +285,10 @@ class PublishStep3Widget extends StatelessWidget {
               child: _buildTextField(
                 label: 'Code postal',
                 hint: '75001',
-                initialValue: formData['zipCode'] as String,
-                onChanged: (v) => onChanged('zipCode', v),
-                icon: Icons.pin_outlined,
+                controller: _zipCodeController,
+                onChanged: (v) => widget.onChanged('zipCode', v),
+                icon: Icons.markunread_mailbox_outlined,
                 keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(5),
-                ],
               ),
             ),
           ],
@@ -72,7 +299,10 @@ class PublishStep3Widget extends StatelessWidget {
         // Map pin placement
         _SectionTitle('Positionnez le bien sur la carte'),
         const SizedBox(height: 12),
-        _MapPinWidget(),
+        _MapPinWidget(
+          lat: widget.formData['lat'] as double?,
+          lng: widget.formData['lng'] as double?,
+        ),
 
         const SizedBox(height: 28),
 
@@ -147,30 +377,30 @@ class PublishStep3Widget extends StatelessWidget {
               const SizedBox(height: 10),
               _SummaryRow(
                 'Type',
-                '${formData['propertyType']} · ${formData['listingType'] == 'sale' ? 'Vente' : 'Location'}',
+                '${widget.formData['propertyType']} · ${widget.formData['listingType'] == 'sale' ? 'Vente' : 'Location'}',
               ),
               _SummaryRow(
                 'Surface',
-                '${formData['surface'].isEmpty ? '—' : formData['surface']} m²',
+                '${widget.formData['surface'].isEmpty ? '—' : widget.formData['surface']} m²',
               ),
               _SummaryRow(
                 'Prix',
-                formData['price'].isEmpty
+                widget.formData['price'].isEmpty
                     ? '—'
                     : CurrencyService.instance.format(
-                        int.tryParse(formData['price'] as String) ?? 0,
-                        isRent: formData['listingType'] == 'rent',
+                        int.tryParse(widget.formData['price'] as String) ?? 0,
+                        isRent: widget.formData['listingType'] == 'rent',
                       ),
               ),
               _SummaryRow(
                 'Pièces',
-                '${formData['rooms']} pièces · ${formData['bedrooms']} chambres',
+                '${widget.formData['rooms']} pièces · ${widget.formData['bedrooms']} chambres',
               ),
               _SummaryRow(
                 'Adresse',
-                formData['address'].isEmpty
+                widget.formData['address'].isEmpty
                     ? '—'
-                    : '${formData['address']}, ${formData['zipCode']} ${formData['city']}',
+                    : '${widget.formData['address']}, ${widget.formData['zipCode']} ${widget.formData['city']}',
               ),
             ],
           ),
@@ -184,59 +414,67 @@ class PublishStep3Widget extends StatelessWidget {
   Widget _buildTextField({
     required String label,
     required String hint,
-    required String initialValue,
+    TextEditingController? controller,
+    String? initialValue,
     required Function(String) onChanged,
     required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    List<TextInputFormatter>? inputFormatters,
+    TextInputType? keyboardType,
   }) {
-    return TextFormField(
-      initialValue: initialValue,
-      onChanged: onChanged,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      style: GoogleFonts.outfit(fontSize: 15, color: AppTheme.textPrimary),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon, size: 18, color: AppTheme.muted),
-        labelStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.muted),
-        border: UnderlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.border),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textPrimary),
         ),
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.border),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          initialValue: controller == null ? initialValue : null,
+          onChanged: onChanged,
+          keyboardType: keyboardType,
+          style: GoogleFonts.outfit(fontSize: 15, color: AppTheme.textPrimary),
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: hint,
+            prefixIcon: Icon(icon, size: 18, color: AppTheme.muted),
+            labelStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.muted),
+            border: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppTheme.border),
+            ),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppTheme.border),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppTheme.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+          ),
         ),
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.primary, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-      ),
+      ],
     );
   }
 }
 
 class _MapPinWidget extends StatelessWidget {
+  final double? lat;
+  final double? lng;
+
+  const _MapPinWidget({this.lat, this.lng});
+
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: Stack(
         children: [
-          Container(
-            height: 180,
-            width: double.infinity,
-            color: const Color(0xFFE8EFF6),
-            child: CustomPaint(painter: _SimpleMapPainter()),
-          ),
-          Positioned.fill(
-            child: Center(
-              child: Icon(
-                Icons.location_on_rounded,
-                size: 40,
-                color: AppTheme.accent,
-              ),
-            ),
+          PropertyMiniMapWidget(
+            address: '',
+            lat: lat,
+            lng: lng,
           ),
           Positioned(
             bottom: 10,
@@ -275,69 +513,6 @@ class _MapPinWidget extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SimpleMapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 6;
-    final m = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 3;
-    canvas.drawLine(
-      Offset(0, size.height * 0.5),
-      Offset(size.width, size.height * 0.5),
-      p,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.5, 0),
-      Offset(size.width * 0.5, size.height),
-      p,
-    );
-    canvas.drawLine(
-      Offset(0, size.height * 0.3),
-      Offset(size.width, size.height * 0.3),
-      m,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.3, 0),
-      Offset(size.width * 0.3, size.height),
-      m,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.75, 0),
-      Offset(size.width * 0.75, size.height),
-      m,
-    );
-    final block = Paint()..color = const Color(0xFFD1DCE8);
-    canvas.drawRect(
-      Rect.fromLTWH(4, 4, size.width * 0.26, size.height * 0.44),
-      block,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(
-        size.width * 0.3 + 4,
-        4,
-        size.width * 0.19,
-        size.height * 0.44,
-      ),
-      block,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(
-        size.width * 0.5 + 4,
-        size.height * 0.5 + 4,
-        size.width * 0.23,
-        size.height * 0.44,
-      ),
-      block,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _PublicationSettingTile extends StatelessWidget {

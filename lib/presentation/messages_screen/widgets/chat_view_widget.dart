@@ -153,6 +153,7 @@ class _ChatViewWidgetState extends State<ChatViewWidget> {
                             borderRadius: BorderRadius.circular(100),
                             child: CustomImageWidget(
                               imageUrl: conv['avatarUrl'] as String? ?? '',
+                              name: conv['contactName'] as String?,
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,

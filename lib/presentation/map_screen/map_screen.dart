@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:zehouse/services/subscription_service.dart';
 
 import '../../core/app_export.dart';
 import '../../services/location_service.dart';
@@ -14,7 +15,7 @@ import './widgets/map_property_bottom_sheet_widget.dart';
 import './widgets/map_search_bar_widget.dart';
 import './widgets/map_view_widget.dart';
 import './widgets/map_search_view.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../../widgets/global_banner_ad_widget.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -57,38 +58,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   List<Map<String, dynamic>> _filteredProperties = [];
   String _activeFilter = 'Tous';
 
-  // AdMob BannerAd
-  BannerAd? _bannerAd;
-  bool _isBannerAdLoaded = false;
-
-  void _loadBannerAd() {
-    _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Test Ad Unit ID
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          if (mounted) {
-            setState(() {
-              _isBannerAdLoaded = true;
-            });
-          }
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-        },
-      ),
-    );
-    _bannerAd!.load();
-  }
-
 
 
   @override
   void initState() {
     super.initState();
-    _loadBannerAd();
-    
     final double? uLat = MapboxService.userLat;
     final double? uLng = MapboxService.userLng;
     if (uLat != null && uLng != null) {
@@ -163,21 +137,29 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       final response = await Supabase.instance.client
           .from('user_listings')
           .select()
-          .eq('is_active', true)
           .order('created_at', ascending: false);
+      
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      final currentUserPlan = SubscriptionService.instance.current.plan;
 
-      final listings = (response as List).map((item) {
+      final List list = response as List;
+      final listings = list
+          .where((item) => item['is_active'] != false)
+          .map((item) {
+        final rawPrice = (item['price'] as num?)?.toInt() ?? 0;
+        final rawSurface = (item['surface'] as num?)?.toDouble() ?? 0.0;
+        final pricePerM2 = (rawSurface > 0)
+            ? (rawPrice / rawSurface).round()
+            : 0;
+
         return {
-          'id': 'ul_${item['id']}',
+          'id': item['id'].toString(),
           'title': item['title'] ?? '',
           'address': item['address'] ?? '',
-          'price': item['price'] ?? 0,
-          'pricePerM2':
-              (item['surface'] != null && (item['surface'] as double) > 0)
-              ? ((item['price'] as int) / (item['surface'] as double)).round()
-              : 0,
-          'surface': (item['surface'] as num?)?.toDouble() ?? 0.0,
-          'rooms': item['rooms'] ?? 1,
+          'price': rawPrice,
+          'pricePerM2': pricePerM2,
+          'surface': rawSurface,
+          'rooms': (item['rooms'] as num?)?.toInt() ?? 1,
           'type': item['property_type'] ?? 'Appartement',
           'listingType': item['listing_type'] ?? 'sale',
           'daysOnMarket': 0,
@@ -188,8 +170,22 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           'isNew': true,
           'isFavorite': false,
           'isUserListing': true,
+          'userId': item['user_id'],
         };
       }).toList();
+
+      // Priority Sorting (Vos annonces remontent en haut)
+      if (currentUserId != null &&
+          (currentUserPlan == SubscriptionPlan.pro ||
+              currentUserPlan == SubscriptionPlan.ultra)) {
+        listings.sort((a, b) {
+          final isAMine = a['userId'] == currentUserId;
+          final isBMine = b['userId'] == currentUserId;
+          if (isAMine && !isBMine) return -1;
+          if (!isAMine && isBMine) return 1;
+          return 0;
+        });
+      }
 
       if (mounted) {
         setState(() {
@@ -197,8 +193,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         });
         _onFilterChanged(_activeFilter);
       }
-    } catch (e) {
-      // Ignore
+    } catch (e, stack) {
+      debugPrint('Error loading user listings on map: $e\n$stack');
     }
   }
 
@@ -283,7 +279,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _bannerAd?.dispose();
     _bottomSheetController.dispose();
     LocationService.instance.stopLocationStream();
     super.dispose();
@@ -586,6 +581,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const GlobalBannerAdWidget(),
                   const SizedBox(height: 10),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -605,15 +601,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     activeFilter: _activeFilter,
                     onFilterChanged: _onFilterChanged,
                   ),
-                  // AdMob BannerAd integration below chips
-                  if (_isBannerAdLoaded && _bannerAd != null)
-                    Container(
-                      alignment: Alignment.center,
-                      width: _bannerAd!.size.width.toDouble(),
-                      height: _bannerAd!.size.height.toDouble(),
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: AdWidget(ad: _bannerAd!),
-                    ),
                   if (_searchQuery.isNotEmpty || !_advancedFilter.isDefault)
                     Padding(
                       padding: const EdgeInsets.only(top: 6, left: 16),

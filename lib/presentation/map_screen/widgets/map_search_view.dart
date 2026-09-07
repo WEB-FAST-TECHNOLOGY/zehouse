@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_theme.dart';
+import '../../../theme/app_theme.dart';
 import 'map_filter_chips_widget.dart';
 import 'map_search_bar_widget.dart';
+import '../../../services/currency_service.dart';
 
 class MapSearchView extends StatelessWidget {
   final List<Map<String, dynamic>> properties;
@@ -139,18 +141,7 @@ class MapSearchView extends StatelessWidget {
     final isSponsored = property['isSponsored'] as bool? ?? false;
     final isRent = property['listingType'] == 'rent';
     final price = property['price'] as int? ?? 0;
-    
-    // Format price
-    String priceLabel;
-    if (isRent) {
-      priceLabel = '$price € / mois';
-    } else {
-      if (price >= 1000000) {
-        priceLabel = '${(price / 1000000).toStringAsFixed(2).replaceAll('.', ',')} M €';
-      } else {
-        priceLabel = '${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ')} €';
-      }
-    }
+    final priceLabel = CurrencyService.instance.format(price, isRent: isRent);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

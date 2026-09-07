@@ -106,15 +106,17 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen>
     try {
       final response = await Supabase.instance.client
           .from('user_listings')
-          .select()
-          .eq('is_active', true);
+          .select();
 
-      final loaded = (response as List).map((item) {
+      final List list = response as List;
+      final loaded = list
+          .where((item) => item['is_active'] != false)
+          .map((item) {
         final double lat = (item['lat'] as num?)?.toDouble() ?? 48.8566;
         final double lng = (item['lng'] as num?)?.toDouble() ?? 2.3522;
         
         return {
-          'id': 'ul_${item['id']}',
+          'id': item['id'].toString(),
           'name': item['title'] ?? '',
           'type': item['property_type'] ?? 'Appartement',
           'address': item['address'] ?? '',

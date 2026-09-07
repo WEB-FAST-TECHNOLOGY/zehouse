@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../../../services/ad_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../theme/app_theme.dart';
 import '../../../services/currency_service.dart';
@@ -17,6 +19,9 @@ class _AddListingModalWidgetState extends State<AddListingModalWidget> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   String? _errorMessage;
+
+  RewardedAd? _rewardedAd;
+  bool _isRewardedAdLoaded = false;
 
   // Form fields
   final _titleController = TextEditingController();
@@ -42,6 +47,29 @@ class _AddListingModalWidgetState extends State<AddListingModalWidget> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadRewardedAd();
+  }
+
+  void _loadRewardedAd() {
+    RewardedAd.load(
+      adUnitId: AdHelper.rewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewardedAd = ad;
+          _isRewardedAdLoaded = true;
+        },
+        onAdFailedToLoad: (error) {
+          debugPrint('RewardedAd failed to load: $error');
+          _isRewardedAdLoaded = false;
+        },
+      ),
+    );
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _addressController.dispose();
@@ -49,6 +77,7 @@ class _AddListingModalWidgetState extends State<AddListingModalWidget> {
     _surfaceController.dispose();
     _latController.dispose();
     _lngController.dispose();
+    _rewardedAd?.dispose();
     super.dispose();
   }
 
@@ -69,7 +98,30 @@ class _AddListingModalWidgetState extends State<AddListingModalWidget> {
       _errorMessage = null;
     });
 
+    if (_isRewardedAdLoaded && _rewardedAd != null) {
+      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          ad.dispose();
+          _performSubmitListing();
+        },
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          ad.dispose();
+          _performSubmitListing();
+        },
+      );
+      _rewardedAd!.show(onUserEarnedReward: (ad, reward) {
+        // User earned reward
+      });
+    } else {
+      _performSubmitListing();
+    }
+  }
+
+  Future<void> _performSubmitListing() async {
     try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      
       final lat = double.tryParse(_latController.text.trim()) ?? 48.8566;
       final lng = double.tryParse(_lngController.text.trim()) ?? 2.3522;
       final price = int.tryParse(_priceController.text.trim()) ?? 0;

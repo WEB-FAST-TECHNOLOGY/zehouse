@@ -4,25 +4,27 @@ import '../core/app_export.dart';
 
 extension ImageTypeExtension on String {
   ImageType get imageType {
-    if (startsWith('http') || startsWith('https')) {
+    if (startsWith('http://') || startsWith('https://')) {
       return ImageType.network;
     } else if (endsWith('.svg')) {
       return ImageType.svg;
-    } else if (startsWith('file: //')) {
+    } else if (startsWith('file://')) {
       return ImageType.file;
-    } else {
+    } else if (startsWith('assets/')) {
       return ImageType.png;
+    } else {
+      return ImageType.unknown;
     }
   }
 }
 
 enum ImageType { svg, png, network, file, unknown }
 
-// ignore_for_file: must_be_immutable
 class CustomImageWidget extends StatelessWidget {
   const CustomImageWidget({
     super.key,
     this.imageUrl,
+    this.name,
     this.height,
     this.width,
     this.color,
@@ -37,8 +39,11 @@ class CustomImageWidget extends StatelessWidget {
     this.semanticLabel,
   });
 
-  ///[imageUrl] is required parameter for showing image
+  ///[imageUrl] is optional parameter for showing image
   final String? imageUrl;
+
+  ///[name] optional name to extract initial letter when image is missing or fails
+  final String? name;
 
   final double? height;
 
@@ -61,7 +66,6 @@ class CustomImageWidget extends StatelessWidget {
   final BoxBorder? border;
 
   /// Optional widget to show when the image fails to load.
-  /// If null, a default asset image is shown.
   final Widget? errorWidget;
 
   /// Semantic label for the image to improve accessibility
@@ -82,7 +86,7 @@ class CustomImageWidget extends StatelessWidget {
   }
 
   ///build the image with border radius
-  _buildCircleImage() {
+  Widget _buildCircleImage() {
     if (radius != null) {
       return ClipRRect(
         borderRadius: radius ?? BorderRadius.zero,
@@ -94,7 +98,7 @@ class CustomImageWidget extends StatelessWidget {
   }
 
   ///build the image with border and border radius style
-  _buildImageWithBorder() {
+  Widget _buildImageWithBorder() {
     if (border != null) {
       return Container(
         decoration: BoxDecoration(border: border, borderRadius: radius),
@@ -105,8 +109,39 @@ class CustomImageWidget extends StatelessWidget {
     }
   }
 
+  Widget _buildInitialFallback() {
+    String initial = '?';
+    if (name != null && name!.trim().isNotEmpty) {
+      initial = name!.trim()[0].toUpperCase();
+    } else if (semanticLabel != null && semanticLabel!.trim().isNotEmpty) {
+      final clean = semanticLabel!
+          .replaceAll('Photo de profil de ', '')
+          .replaceAll('Avatar ', '')
+          .trim();
+      if (clean.isNotEmpty) {
+        initial = clean[0].toUpperCase();
+      }
+    }
+
+    return Container(
+      height: height,
+      width: width,
+      color: AppTheme.primary.withAlpha(20),
+      child: Center(
+        child: Text(
+          initial,
+          style: GoogleFonts.outfit(
+            fontSize: ((height ?? 40) * 0.4).clamp(12.0, 32.0),
+            fontWeight: FontWeight.w700,
+            color: AppTheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildImageView() {
-    if (imageUrl != null) {
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) {
       switch (imageUrl!.imageType) {
         case ImageType.svg:
           return SizedBox(
@@ -134,6 +169,8 @@ class CustomImageWidget extends StatelessWidget {
             fit: fit ?? BoxFit.cover,
             color: color,
             semanticLabel: semanticLabel,
+            errorBuilder: (context, error, stackTrace) =>
+                errorWidget ?? _buildInitialFallback(),
           );
         case ImageType.network:
           return CachedNetworkImage(
@@ -151,17 +188,9 @@ class CustomImageWidget extends StatelessWidget {
               ),
             ),
             errorWidget: (context, url, error) =>
-                errorWidget ??
-                Image.asset(
-                  placeHolder,
-                  height: height,
-                  width: width,
-                  fit: fit ?? BoxFit.cover,
-                  semanticLabel: semanticLabel,
-                ),
+                errorWidget ?? _buildInitialFallback(),
           );
         case ImageType.png:
-        default:
           return Image.asset(
             imageUrl!,
             height: height,
@@ -169,9 +198,14 @@ class CustomImageWidget extends StatelessWidget {
             fit: fit ?? BoxFit.cover,
             color: color,
             semanticLabel: semanticLabel,
+            errorBuilder: (context, error, stackTrace) =>
+                errorWidget ?? _buildInitialFallback(),
           );
+        case ImageType.unknown:
+        default:
+          return errorWidget ?? _buildInitialFallback();
       }
     }
-    return SizedBox();
+    return errorWidget ?? _buildInitialFallback();
   }
 }

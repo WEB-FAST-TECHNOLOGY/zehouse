@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../services/messaging_service.dart';
 
 class AppNavigation extends StatelessWidget {
   final int currentIndex;
@@ -17,74 +18,84 @@ class AppNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    return Container(
-      margin: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding > 0 ? bottomPadding : 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: AppTheme.border.withOpacity(AppTheme.isDark ? 0.2 : 0.4),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(AppTheme.isDark ? 0.4 : 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-          if (AppTheme.isDark)
-            BoxShadow(
-              color: AppTheme.primary.withOpacity(0.03),
-              blurRadius: 40,
-              spreadRadius: 2,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          margin: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding > 0 ? bottomPadding : 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppTheme.border.withOpacity(AppTheme.isDark ? 0.2 : 0.4),
+              width: 1.5,
             ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            color: AppTheme.surface.withOpacity(AppTheme.isDark ? 0.75 : 0.85),
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            height: 72,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildNavItem(
-                  context: context,
-                  index: 0,
-                  icon: Icons.map_outlined,
-                  activeIcon: Icons.map_rounded,
-                  label: tr('nav_map'),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(AppTheme.isDark ? 0.4 : 0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+              if (AppTheme.isDark)
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.03),
+                  blurRadius: 40,
+                  spreadRadius: 2,
                 ),
-                _buildNavItem(
-                  context: context,
-                  index: 3,
-                  icon: Icons.chat_bubble_outline_rounded,
-                  activeIcon: Icons.chat_bubble_rounded,
-                  label: tr('nav_messages'),
-                  badge: 3,
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                color: AppTheme.surface.withOpacity(AppTheme.isDark ? 0.75 : 0.85),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                height: 72,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildNavItem(
+                      context: context,
+                      index: 0,
+                      icon: Icons.map_outlined,
+                      activeIcon: Icons.map_rounded,
+                      label: tr('nav_map'),
+                    ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: MessagingService.instance.totalUnreadCount,
+                      builder: (context, unreadCount, child) {
+                        return _buildNavItem(
+                          context: context,
+                          index: 3,
+                          icon: Icons.chat_bubble_outline_rounded,
+                          activeIcon: Icons.chat_bubble_rounded,
+                          label: tr('nav_messages'),
+                          badge: unreadCount,
+                        );
+                      },
+                    ),
+                    _buildMiddlePublishButton(context),
+                    _buildNavItem(
+                      context: context,
+                      index: 4,
+                      icon: Icons.home_work_outlined,
+                      activeIcon: Icons.home_work_rounded,
+                      label: tr('nav_listings'),
+                    ),
+                    _buildNavItem(
+                      context: context,
+                      index: 5,
+                      icon: Icons.person_outline_rounded,
+                      activeIcon: Icons.person_rounded,
+                      label: tr('nav_profile'),
+                    ),
+                  ],
                 ),
-                _buildMiddlePublishButton(context),
-                _buildNavItem(
-                  context: context,
-                  index: 4,
-                  icon: Icons.home_work_outlined,
-                  activeIcon: Icons.home_work_rounded,
-                  label: tr('nav_listings'),
-                ),
-                _buildNavItem(
-                  context: context,
-                  index: 5,
-                  icon: Icons.person_outline_rounded,
-                  activeIcon: Icons.person_rounded,
-                  label: tr('nav_profile'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 

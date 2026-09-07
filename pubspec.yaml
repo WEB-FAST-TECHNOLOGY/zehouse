@@ -1,7 +1,7 @@
 name: zehouse
 description: A new Flutter project.
 publish_to: none
-version: 1.0.0+1
+version: 1.0.1+4
 
 environment:
   sdk: ^3.9.0
@@ -42,6 +42,7 @@ dependencies:
   firebase_messaging: ^15.2.5  # FCM: receive push notifications via Firebase
   flutter_local_notifications: ^18.0.1 # Display in-app / local notifications when app is foreground
   google_mobile_ads: ^7.0.0
+  confetti: ^0.8.0
 dev_dependencies:
   flutter_test:    # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
     sdk: flutter   # CRITICAL: Required for Flutter project testing - DO NOT REMOVE

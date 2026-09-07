@@ -184,5 +184,10 @@
     "notification_permission_title": "Permitir notificaciones",
     "location_permission_title": "Permitir ubicación",
     "gps_updating": "Actualizando GPS...",
-    "notification_new_message": "Nuevo mensaje recibido"
+    "notification_new_message": "Nuevo mensaje recibido",
+    "role_title": "Soy…",
+    "google_complete_title": "Completa tu perfil",
+    "google_complete_subtitle": "Unos datos más para personalizar tu experiencia en ZEHOUSE.",
+    "google_complete_btn": "Terminar registro",
+    "google_complete_skip": "Omitir por ahora"
 }

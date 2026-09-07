@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 import 'package:uuid/uuid.dart';
+import '../../env.dart';
 
 import '../../theme/app_theme.dart';
 import '../../services/subscription_service.dart';
@@ -9,6 +10,8 @@ import '../../services/cinetpay_web.dart'
     if (dart.library.io) '../../services/cinetpay_io.dart';
 import '../../services/moneroo_web.dart'
     if (dart.library.io) '../../services/moneroo_io.dart';
+import '../../services/currency_service.dart';
+import 'subscription_success_screen.dart';
 
 class SubscriptionPlansScreen extends StatefulWidget {
   const SubscriptionPlansScreen({super.key});
@@ -24,318 +27,75 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
   bool _isLoading = false;
   late TabController _tabController;
   bool _wantSponsored = false;
+  BillingCycle _selectedBillingCycle = BillingCycle.monthly;
 
-  static const String _cinetpayApiKey = String.fromEnvironment(
-    'CINETPAY_API_KEY',
-  );
-  static const int _cinetpaySiteId = int.fromEnvironment(
-    'CINETPAY_SITE_ID',
-    defaultValue: 0,
-  );
+  static final String _cinetpayApiKey = Env.cinetpayApiKey;
+  static final String _cinetpayApiPassword = Env.cinetpayApiPassword;
+  static final String _cinetpaySiteId = Env.cinetpaySiteId;
   static const String _notifyUrl =
       'https://zehouse2471.builtwithrocket.new/cinetpay/notify';
 
-  static const String _monerooApiKey = String.fromEnvironment(
-    'MONEROO_API_KEY',
-  );
+  static final String _monerooApiKey = Env.monerooApiKey;
 
-  // ─── Immobilier plans ───────────────────────────────────────────────────────
-  final List<Map<String, dynamic>> _immobilierPlans = [
+  final List<Map<String, dynamic>> _plans = [
     {
-      'plan': SubscriptionPlan.hotel,
-      'title': 'Hôtel',
-      'price': 50,
+      'plan': SubscriptionPlan.plus,
+      'title': 'ZEHOUSE Plus+',
+      'originalPriceMonthly': 5,
+      'priceMonthly': 3,
+      'originalPriceYearly': 60,
+      'priceYearly': 25,
       'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.hotel_rounded,
-      'color': const Color(0xFF1A2B4A),
-      'description':
-          'Publiez et gérez vos annonces hôtelières avec toutes les fonctionnalités premium.',
+      'icon': Icons.add_circle_outline_rounded,
+      'color': const Color(0xFF0EA5E9), // Neon blue
+      'description': 'L\'essentiel pour démarrer sans frais par annonce.',
       'features': [
-        'Annonces hôtelières illimitées',
-        'Photos haute résolution',
-        'Mise en avant dans les résultats',
-        'Statistiques détaillées',
-        'Support prioritaire',
+        'Jusqu\'à 30 annonces gratuites',
+        'Zéro frais de publication',
+        'Badge Profil "Plus+ Vérifié"',
+        'Messagerie et contacts directs',
+        'Zéro Publicités internes et externes',
       ],
     },
     {
-      'plan': SubscriptionPlan.appartement,
-      'title': 'Appartement Meublé',
-      'price': 35,
+      'plan': SubscriptionPlan.pro,
+      'title': 'ZEHOUSE Pro',
+      'originalPriceMonthly': 15,
+      'priceMonthly': 9,
+      'originalPriceYearly': 180,
+      'priceYearly': 89,
       'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.apartment_rounded,
-      'color': const Color(0xFF7C3AED),
-      'description':
-          'Gérez vos appartements meublés et trouvez des locataires rapidement.',
+      'icon': Icons.domain_rounded,
+      'color': const Color(0xFF8B5CF6), // Neon purple
+      'description': 'Pour les professionnels actifs et agents immobiliers.',
       'features': [
-        'Annonces appartements illimitées',
-        'Galerie photos complète',
-        'Visibilité accrue',
-        'Messagerie intégrée',
-        'Tableau de bord analytique',
+        'Jusqu\'à 100 annonces gratuites',
+        'Zéro frais de publication',
+        'Recherche prioritaire (vos annonces remontent)',
+        'Badge Profil "PRO"',
+        'Apparition dans l\'Annuaire des Pros',
+        'Statistiques avancées',
+        'Zéro Publicités internes et externes',
       ],
     },
     {
-      'plan': SubscriptionPlan.agent,
-      'title': 'Agent Immobilier',
-      'price': 45,
+      'plan': SubscriptionPlan.ultra,
+      'title': 'ZEHOUSE Ultra',
+      'originalPriceMonthly': 30,
+      'priceMonthly': 19,
+      'originalPriceYearly': 360,
+      'priceYearly': 189,
       'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.real_estate_agent_rounded,
-      'color': const Color(0xFF0891B2),
-      'description':
-          'Gérez votre portefeuille de biens et développez votre clientèle.',
+      'icon': Icons.workspace_premium_rounded,
+      'color': const Color(0xFFF59E0B), // Neon gold
+      'description': 'Visibilité maximale et annonces illimitées.',
       'features': [
-        'Annonces illimitées (vente & location)',
-        'Profil agent vérifié',
-        'Mise en avant dans les recherches',
-        'Messagerie intégrée',
-        'Statistiques de performance',
-      ],
-    },
-  ];
-
-  // ─── Professionnels plans ────────────────────────────────────────────────────
-  final List<Map<String, dynamic>> _professionnelPlans = [
-    {
-      'plan': SubscriptionPlan.architecte,
-      'title': 'Architecte',
-      'price': 50,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.architecture_rounded,
-      'color': const Color(0xFF7C3AED),
-      'description': 'Présentez vos projets et attirez de nouveaux clients.',
-      'features': [
-        'Profil professionnel complet',
-        'Portfolio de projets',
-        'Mise en avant dans les résultats',
-        'Messagerie clients',
-        'Badge certifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.plombier,
-      'title': 'Plombier',
-      'price': 30,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.water_drop_rounded,
-      'color': const Color(0xFF0891B2),
-      'description': 'Développez votre activité et recevez plus de demandes.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.electricien,
-      'title': 'Électricien',
-      'price': 30,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.bolt_rounded,
-      'color': const Color(0xFFD97706),
-      'description': 'Attirez plus de clients pour vos travaux électriques.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.macon,
-      'title': 'Maçon',
-      'price': 30,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.foundation_rounded,
-      'color': const Color(0xFF92400E),
-      'description': 'Trouvez des chantiers et développez votre réputation.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.peintre,
-      'title': 'Peintre',
-      'price': 25,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.format_paint_rounded,
-      'color': const Color(0xFFE85D4A),
-      'description': 'Montrez vos réalisations et obtenez plus de contrats.',
-      'features': [
-        'Profil professionnel visible',
-        'Galerie de réalisations',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.menuisier,
-      'title': 'Menuisier',
-      'price': 30,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.carpenter_rounded,
-      'color': const Color(0xFF92400E),
-      'description': 'Présentez vos créations sur mesure à vos futurs clients.',
-      'features': [
-        'Profil professionnel visible',
-        'Galerie de réalisations',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.carreleur,
-      'title': 'Carreleur',
-      'price': 25,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.grid_4x4_rounded,
-      'color': const Color(0xFF0891B2),
-      'description': 'Développez votre clientèle dans votre zone.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.couvreur,
-      'title': 'Couvreur',
-      'price': 30,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.roofing_rounded,
-      'color': const Color(0xFF1A2B4A),
-      'description': 'Trouvez des chantiers de toiture dans votre région.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.serrurier,
-      'title': 'Serrurier',
-      'price': 25,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.lock_rounded,
-      'color': const Color(0xFF374151),
-      'description': 'Soyez visible pour les urgences et interventions.',
-      'features': [
-        'Profil professionnel visible',
-        'Disponibilité urgence 24h',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.chauffagiste,
-      'title': 'Chauffagiste',
-      'price': 30,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.local_fire_department_rounded,
-      'color': const Color(0xFFDC2626),
-      'description':
-          'Attirez des clients pour l\'installation et l\'entretien.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.decorateur,
-      'title': 'Décorateur',
-      'price': 40,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.palette_rounded,
-      'color': const Color(0xFFEC4899),
-      'description': 'Présentez vos créations et développez votre clientèle.',
-      'features': [
-        'Profil professionnel visible',
-        'Portfolio de projets',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.soudeur,
-      'title': 'Soudeur',
-      'price': 25,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.hardware_rounded,
-      'color': const Color(0xFF374151),
-      'description': 'Trouvez des chantiers de soudure et métallerie.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.charpentier,
-      'title': 'Charpentier',
-      'price': 30,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.cabin_rounded,
-      'color': const Color(0xFF92400E),
-      'description': 'Développez votre activité de charpente et ossature bois.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
-      ],
-    },
-    {
-      'plan': SubscriptionPlan.ferrailleur,
-      'title': 'Ferrailleur',
-      'price': 20,
-      'currency': 'USD',
-      'period': 'an',
-      'icon': Icons.construction_rounded,
-      'color': const Color(0xFF374151),
-      'description': 'Trouvez des chantiers de ferraillage et béton armé.',
-      'features': [
-        'Profil professionnel visible',
-        'Zone d\'intervention configurable',
-        'Mise en avant dans les résultats',
-        'Messagerie intégrée',
-        'Badge vérifié',
+        'Annonces illimitées sans aucun frais',
+        'Top Priorité absolue dans les résultats',
+        'Badge VIP "Ultra Gold"',
+        'Portfolio Pro avec appel direct',
+        'Statistiques complètes et détaillées',
+        'Zéro Publicités internes et externes',
       ],
     },
   ];
@@ -347,38 +107,41 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _subscriptionService.addListener(_onSubscriptionUpdated);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _subscriptionService.removeListener(_onSubscriptionUpdated);
     super.dispose();
   }
 
-  Future<void> _startTrial(SubscriptionPlan plan) async {
-    setState(() => _isLoading = true);
-    await _subscriptionService.activateTrial(plan, sponsored: _wantSponsored);
-    setState(() => _isLoading = false);
-    if (mounted) {
-      _showSuccessDialog(
-        'Essai gratuit activé !',
-        'Votre période d\'essai de 30 jours a été activée. Profitez de toutes les fonctionnalités.',
-      );
+  void _startPayment(Map<String, dynamic> planData, {bool isTrial = false}) async {
+    if (isTrial) {
+      final plan = planData['plan'] as SubscriptionPlan;
+      setState(() => _isLoading = true);
+      await Future.delayed(const Duration(seconds: 1)); // UX delay
+      await _subscriptionService.activateTrial(plan, sponsored: _wantSponsored);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubscriptionSuccessScreen(planData: planData),
+          ),
+        );
+      }
+      return;
     }
+    _showPaymentProviderDialog(planData, isTrial: isTrial);
   }
 
-  void _startPayment(Map<String, dynamic> planData) {
-    _showPaymentProviderDialog(planData);
-  }
-
-  void _showPaymentProviderDialog(Map<String, dynamic> planData) {
+  void _showPaymentProviderDialog(Map<String, dynamic> planData, {bool isTrial = false}) {
     final color = planData['color'] as Color;
     final title = planData['title'] as String;
-    final baseAmount = planData['price'] as int;
-    final sponsoredExtra = _wantSponsored ? 30 : 0;
+    final isMonthly = _selectedBillingCycle == BillingCycle.monthly;
+    final baseAmount = isTrial ? 0 : (isMonthly ? planData['priceMonthly'] as int : planData['priceYearly'] as int);
+    final sponsoredExtra = (!isTrial && _wantSponsored) ? (isMonthly ? 3 : 30) : 0;
     final totalAmount = baseAmount + sponsoredExtra;
 
     showModalBottomSheet(
@@ -404,41 +167,22 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
             ),
             const SizedBox(height: 20),
             Text(
-              'Choisir le moyen de paiement',
+              'Choisissez votre moyen de paiement',
               style: GoogleFonts.outfit(
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Abonnement $title — $totalAmount\$/an${_wantSponsored ? ' (dont 30\$ sponsoring)' : ''}',
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _buildProviderTile(
-              icon: Icons.credit_card_rounded,
-              providerName: 'CinetPay',
-              subtitle: 'Mobile Money, cartes bancaires',
+              icon: Icons.payment_rounded,
+              providerName: 'Accéder au paiement CinetPay',
+              subtitle: 'Mobile Money, Orange Money, Wave...',
               color: const Color(0xFF0066CC),
               onTap: () {
                 Navigator.pop(context);
-                _startCinetPayPayment(planData, totalAmount);
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildProviderTile(
-              icon: Icons.account_balance_wallet_rounded,
-              providerName: 'Moneroo',
-              subtitle: 'Mobile Money, transferts, cartes',
-              color: const Color(0xFF6366F1),
-              onTap: () {
-                Navigator.pop(context);
-                _startMonerooPayment(planData, totalAmount);
+                _startCinetPayPayment(planData, totalAmount, isTrial: isTrial);
               },
             ),
             const SizedBox(height: 8),
@@ -509,14 +253,29 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
     );
   }
 
-  void _startCinetPayPayment(Map<String, dynamic> planData, int amount) {
+  void _startCinetPayPayment(Map<String, dynamic> planData, int baseAmountUsd, {bool isTrial = false}) {
     final plan = planData['plan'] as SubscriptionPlan;
-    final currency = planData['currency'] as String;
     final title = planData['title'] as String;
+    
+    // CinetPay compte Cameroun → toujours XAF
+    const String cinetpayCurrency = 'XAF';
+    
+    // Convertir USD en XAF (1 USD ≈ 600 XAF)
+    final int amountInLocalCurrency = baseAmountUsd * 600;
+
     final transactionId = const Uuid()
         .v4()
         .replaceAll('-', '')
         .substring(0, 20);
+
+    _printYellowLog(
+      'INITIATING CINETPAY PAYMENT\n'
+      'Plan: $title (Trial: $isTrial)\n'
+      'Amount: $amountInLocalCurrency $cinetpayCurrency\n'
+      'Site ID: $_cinetpaySiteId\n'
+      'API Key: ${_cinetpayApiKey.isEmpty ? 'MISSING' : 'PROVIDED'}\n'
+      'Transaction ID: $transactionId',
+    );
 
     Navigator.push(
       context,
@@ -524,22 +283,21 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
         builder: (_) => CinetPayCheckoutWidget(
           title: 'Abonnement $title',
           configData: {
-            'apikey': _cinetpayApiKey.isEmpty
-                ? 'YOUR_CINETPAY_API_KEY'
-                : _cinetpayApiKey,
-            'site_id': _cinetpaySiteId == 0 ? 12345678 : _cinetpaySiteId,
+            'apikey': _cinetpayApiKey,
+            'api_password': _cinetpayApiPassword,
+            'site_id': _cinetpaySiteId,
             'notify_url': _notifyUrl,
           },
           paymentData: {
             'transaction_id': transactionId,
-            'amount': amount,
-            'currency': currency,
+            'amount': amountInLocalCurrency,
+            'currency': cinetpayCurrency,
             'channels': 'ALL',
-            'description': 'Abonnement annuel $title - ZEHOUSE',
+            'description': 'Abonnement $title - ZEHOUSE',
           },
           waitResponse: (response) {
             Navigator.pop(context);
-            _handlePaymentResponse(response, plan, transactionId);
+            _handlePaymentResponse(response, planData, transactionId, _selectedBillingCycle, isTrial: isTrial);
           },
           onError: (error) {
             Navigator.pop(context);
@@ -558,6 +316,14 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
         .replaceAll('-', '')
         .substring(0, 20);
 
+    _printYellowLog(
+      'INITIATING MONEROO PAYMENT\n'
+      'Plan: $title\n'
+      'Amount: $amount XOF\n'
+      'API Key: ${_monerooApiKey.isEmpty ? 'MISSING' : 'PROVIDED'}\n'
+      'Transaction ID: $transactionId',
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -565,7 +331,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
           title: 'Abonnement $title',
           amount: amount,
           currency: 'XOF',
-          description: 'Abonnement annuel $title - ZEHOUSE',
+          description: 'Abonnement $title - ZEHOUSE',
           apiKey: _monerooApiKey.isEmpty
               ? 'YOUR_MONEROO_API_KEY'
               : _monerooApiKey,
@@ -579,13 +345,16 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
                   .activatePaidSubscription(
                     plan,
                     transactionId,
+                    _selectedBillingCycle,
                     sponsored: _wantSponsored,
                   )
                   .then((_) {
                     if (mounted) {
-                      _showSuccessDialog(
-                        'Paiement accepté !',
-                        'Votre abonnement annuel a été activé avec succès. Profitez de toutes les fonctionnalités.',
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SubscriptionSuccessScreen(planData: planData),
+                        ),
                       );
                     }
                   });
@@ -605,22 +374,42 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
     );
   }
 
+  void _printYellowLog(String message) {
+    debugPrint('\x1B[33m========================================\x1B[0m');
+    debugPrint('\x1B[33m🚀 ZEHOUSE PAYMENT LOG:\x1B[0m');
+    debugPrint('\x1B[33m$message\x1B[0m');
+    debugPrint('\x1B[33m========================================\x1B[0m');
+  }
+
   void _handlePaymentResponse(
     Map<String, dynamic> response,
-    SubscriptionPlan plan,
+    Map<String, dynamic> planData,
     String transactionId,
-  ) async {
+    BillingCycle billingCycle, {
+    bool isTrial = false,
+  }) async {
     final status = response['status'] as String? ?? '';
     if (status == 'ACCEPTED') {
-      await _subscriptionService.activatePaidSubscription(
-        plan,
-        transactionId,
-        sponsored: _wantSponsored,
-      );
+      if (isTrial) {
+        await _subscriptionService.activateTrial(
+          planData['plan'] as SubscriptionPlan,
+          sponsored: _wantSponsored,
+        );
+      } else {
+        await _subscriptionService.activatePaidSubscription(
+          planData['plan'] as SubscriptionPlan,
+          transactionId,
+          billingCycle,
+          sponsored: _wantSponsored,
+        );
+      }
+      
       if (mounted) {
-        _showSuccessDialog(
-          'Paiement accepté !',
-          'Votre abonnement annuel a été activé avec succès. Profitez de toutes les fonctionnalités.',
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubscriptionSuccessScreen(planData: planData),
+          ),
         );
       }
     } else {
@@ -636,60 +425,6 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
   void _handlePaymentError(Map<String, dynamic> error) {
     final message = error['message'] as String? ?? 'Une erreur est survenue';
     _showErrorDialog('Erreur de paiement', message);
-  }
-
-  void _showSuccessDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppTheme.successLight,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.check_circle_rounded,
-                color: AppTheme.success,
-                size: 36,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: GoogleFonts.outfit(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Continuer'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showErrorDialog(String title, String message) {
@@ -770,29 +505,8 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
             color: AppTheme.textPrimary,
           ),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelStyle: GoogleFonts.outfit(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: GoogleFonts.outfit(fontSize: 13),
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.textSecondary,
-          indicatorColor: AppTheme.primary,
-          tabs: const [
-            Tab(text: 'Immobilier'),
-            Tab(text: 'Professionnels'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildPlanList(_immobilierPlans, sub),
-          _buildPlanList(_professionnelPlans, sub),
-        ],
-      ),
+      body: _buildPlanList(_plans, sub),
     );
   }
 
@@ -861,6 +575,11 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
 
           SizedBox(height: 1.5.h),
 
+          // Billing Cycle Toggle
+          _buildBillingCycleToggle(),
+
+          SizedBox(height: 1.5.h),
+
           // Sponsored option
           _buildSponsoredToggle(),
 
@@ -888,6 +607,105 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
             ),
 
           SizedBox(height: 2.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBillingCycleToggle() {
+    final isMonthly = _selectedBillingCycle == BillingCycle.monthly;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedBillingCycle = BillingCycle.monthly),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isMonthly ? AppTheme.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: isMonthly
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primary.withAlpha(50),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  'Mensuel',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: isMonthly ? FontWeight.w700 : FontWeight.w500,
+                    color: isMonthly ? Colors.white : AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedBillingCycle = BillingCycle.yearly),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: !isMonthly ? AppTheme.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: !isMonthly
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primary.withAlpha(50),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Annuel',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: !isMonthly ? FontWeight.w700 : FontWeight.w500,
+                        color: !isMonthly ? Colors.white : AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: !isMonthly ? Colors.white.withAlpha(40) : AppTheme.primary.withAlpha(30),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '-20%',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: !isMonthly ? Colors.white : AppTheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -976,9 +794,26 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
   }
 
   Widget _buildCurrentSubscriptionBanner(SubscriptionInfo sub) {
-    final color = sub.plan == SubscriptionPlan.hotel
-        ? AppTheme.primary
-        : const Color(0xFF7C3AED);
+    Color color;
+    IconData icon;
+    
+    switch (sub.plan) {
+      case SubscriptionPlan.plus:
+        color = const Color(0xFF0ea5e9);
+        icon = Icons.verified_rounded;
+        break;
+      case SubscriptionPlan.pro:
+        color = const Color(0xFF8b5cf6);
+        icon = Icons.domain_rounded;
+        break;
+      case SubscriptionPlan.ultra:
+        color = const Color(0xFFf59e0b);
+        icon = Icons.workspace_premium_rounded;
+        break;
+      default:
+        color = AppTheme.primary;
+        icon = Icons.star_rounded;
+    }
 
     return Container(
       width: double.infinity,
@@ -998,9 +833,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
               shape: BoxShape.circle,
             ),
             child: Icon(
-              sub.plan == SubscriptionPlan.hotel
-                  ? Icons.hotel_rounded
-                  : Icons.work_rounded,
+              icon,
               color: color,
               size: 22,
             ),
@@ -1079,21 +912,34 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
     final isExpired =
         sub.plan == plan && sub.status == SubscriptionStatus.expired;
 
+    final isMonthly = _selectedBillingCycle == BillingCycle.monthly;
+    final currentPrice = isMonthly ? planData['priceMonthly'] : planData['priceYearly'];
+    final originalPrice = isMonthly ? planData['originalPriceMonthly'] : planData['originalPriceYearly'];
+    final periodLabel = isMonthly ? 'mois' : 'an';
+
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(20.0),
+        color: AppTheme.surface.withAlpha(240),
+        borderRadius: BorderRadius.circular(24.0),
         border: Border.all(
-          color: isCurrentPlan ? color : AppTheme.border,
+          color: isCurrentPlan ? color : color.withAlpha(50),
           width: isCurrentPlan ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(8),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: color.withAlpha(20),
+            blurRadius: 24,
+            spreadRadius: 2,
+            offset: const Offset(0, 8),
           ),
+          if (isCurrentPlan)
+            BoxShadow(
+              color: color.withAlpha(40),
+              blurRadius: 32,
+              spreadRadius: 8,
+              offset: const Offset(0, 0),
+            ),
         ],
       ),
       child: Column(
@@ -1162,18 +1008,38 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${planData['price']}\$',
+                      CurrencyService.instance.format(currentPrice),
                       style: GoogleFonts.outfit(
                         fontSize: 32,
                         fontWeight: FontWeight.w800,
                         color: color,
+                        shadows: [
+                          Shadow(
+                            color: color.withAlpha(100),
+                            blurRadius: 16,
+                          )
+                        ],
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    if (originalPrice != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          CurrencyService.instance.format(originalPrice),
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textSecondary,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ),
                     const SizedBox(width: 4),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Text(
-                        '/ ${planData['period']}',
+                        '/ $periodLabel',
                         style: GoogleFonts.outfit(
                           fontSize: 14,
                           color: AppTheme.textSecondary,
@@ -1213,7 +1079,9 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Sponsoring inclus +30\$/an',
+                        isMonthly
+                            ? 'Sponsoring inclus ${CurrencyService.instance.format(3)}/mois'
+                            : 'Sponsoring inclus ${CurrencyService.instance.format(30)}/an',
                         style: GoogleFonts.outfit(
                           fontSize: 12,
                           color: const Color(0xFFF97316),
@@ -1274,8 +1142,36 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
   }
 
   Widget _buildTrialAndPayButtons(Map<String, dynamic> planData, Color color) {
-    final basePrice = planData['price'] as int;
-    final totalPrice = basePrice + (_wantSponsored ? 30 : 0);
+    final isMonthly = _selectedBillingCycle == BillingCycle.monthly;
+    final basePrice = (isMonthly ? planData['priceMonthly'] : planData['priceYearly']) as int;
+    final totalPrice = basePrice + (_wantSponsored ? (isMonthly ? 3 : 30) : 0);
+    final period = isMonthly ? 'mois' : 'an';
+    final hasUsedTrial = _subscriptionService.current.hasUsedTrial;
+
+    if (hasUsedTrial) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () => _startPayment(planData),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+          ),
+          child: Text(
+            'Payer maintenant — ${CurrencyService.instance.format(totalPrice)}/$period',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
         SizedBox(
@@ -1283,7 +1179,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
           child: ElevatedButton(
             onPressed: _isLoading
                 ? null
-                : () => _startTrial(planData['plan'] as SubscriptionPlan),
+                : () => _startPayment(planData, isTrial: true),
             style: ElevatedButton.styleFrom(
               backgroundColor: color,
               foregroundColor: Colors.white,
@@ -1324,7 +1220,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
               ),
             ),
             child: Text(
-              'Payer maintenant — $totalPrice\$/an',
+              'Payer maintenant — ${CurrencyService.instance.format(totalPrice)}/$period',
               style: GoogleFonts.outfit(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1337,8 +1233,10 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
   }
 
   Widget _buildPayButton(Map<String, dynamic> planData, Color color) {
-    final basePrice = planData['price'] as int;
-    final totalPrice = basePrice + (_wantSponsored ? 30 : 0);
+    final isMonthly = _selectedBillingCycle == BillingCycle.monthly;
+    final basePrice = (isMonthly ? planData['priceMonthly'] : planData['priceYearly']) as int;
+    final totalPrice = basePrice + (_wantSponsored ? (isMonthly ? 3 : 30) : 0);
+    final period = isMonthly ? 'mois' : 'an';
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -1352,7 +1250,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
           ),
         ),
         child: Text(
-          'Activer — $totalPrice\$/an',
+          'Activer — ${CurrencyService.instance.format(totalPrice)}/$period',
           style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
@@ -1390,8 +1288,10 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
   }
 
   Widget _buildRenewButton(Map<String, dynamic> planData, Color color) {
-    final basePrice = planData['price'] as int;
-    final totalPrice = basePrice + (_wantSponsored ? 30 : 0);
+    final isMonthly = _selectedBillingCycle == BillingCycle.monthly;
+    final basePrice = (isMonthly ? planData['priceMonthly'] : planData['priceYearly']) as int;
+    final totalPrice = basePrice + (_wantSponsored ? (isMonthly ? 3 : 30) : 0);
+    final period = isMonthly ? 'mois' : 'an';
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -1405,7 +1305,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
           ),
         ),
         child: Text(
-          'Renouveler — $totalPrice\$/an',
+          'Renouveler — ${CurrencyService.instance.format(totalPrice)}/$period',
           style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
@@ -1413,8 +1313,10 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
   }
 
   Widget _buildSwitchButton(Map<String, dynamic> planData, Color color) {
-    final basePrice = planData['price'] as int;
-    final totalPrice = basePrice + (_wantSponsored ? 30 : 0);
+    final isMonthly = _selectedBillingCycle == BillingCycle.monthly;
+    final basePrice = (isMonthly ? planData['priceMonthly'] : planData['priceYearly']) as int;
+    final totalPrice = basePrice + (_wantSponsored ? (isMonthly ? 3 : 30) : 0);
+    final period = isMonthly ? 'mois' : 'an';
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
@@ -1428,7 +1330,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen>
           ),
         ),
         child: Text(
-          'Changer de plan — $totalPrice\$/an',
+          'Changer de plan — ${CurrencyService.instance.format(totalPrice)}/$period',
           style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),

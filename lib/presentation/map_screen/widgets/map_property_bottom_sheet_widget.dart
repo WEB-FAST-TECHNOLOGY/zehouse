@@ -4,6 +4,7 @@ import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_image_widget.dart';
 import '../../../widgets/status_badge_widget.dart';
 import '../../../services/currency_service.dart';
+import '../../../widgets/global_native_ad_widget.dart';
 
 class MapPropertyBottomSheetWidget extends StatelessWidget {
   final List<Map<String, dynamic>> properties;
@@ -78,7 +79,6 @@ class MapPropertyBottomSheetWidget extends StatelessWidget {
 
   Widget _buildEmptyStateOverlay(BuildContext context) {
     return Container(
-      height: 210,
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -100,8 +100,10 @@ class MapPropertyBottomSheetWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const GlobalNativeAdWidget(),
+          const SizedBox(height: 12),
           Icon(
-            Icons.explore_off_outlined,
+            Icons.search_off_rounded,
             size: 32,
             color: AppTheme.primary,
           ),

@@ -1,7 +1,10 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../env.dart';
+import './language_service.dart';
+import './currency_service.dart';
 
 class SupabaseService {
   static SupabaseService? _instance;
@@ -9,14 +12,8 @@ class SupabaseService {
 
   SupabaseService._();
 
-  static const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: '',
-  );
-  static const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  );
+  static final String supabaseUrl = Env.supabaseUrl;
+  static final String supabaseAnonKey = Env.supabaseAnonKey;
 
   // Initialize Supabase - call this in main()
   static Future<void> initialize() async {
@@ -41,6 +38,37 @@ class SupabaseService {
 
   // Get Supabase client
   SupabaseClient get client => Supabase.instance.client;
+
+  // Sync user preferences (language & currency) from Supabase
+  static Future<void> syncUserPreferences(BuildContext context) async {
+    try {
+      final user = instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final data = await instance.client
+          .from('user_profiles')
+          .select('language_code, currency_code')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (data != null) {
+        final langCode = data['language_code'] as String?;
+        if (langCode != null && langCode.isNotEmpty) {
+          if (context.mounted) {
+            LanguageService.instance.setContext(context);
+          }
+          await LanguageService.instance.setLanguage(langCode);
+        }
+
+        final currCode = data['currency_code'] as String?;
+        if (currCode != null && currCode.isNotEmpty) {
+          await CurrencyService.instance.setCurrency(currCode);
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to sync user preferences: $e');
+    }
+  }
 }
 
 class LoggingHttpClient extends http.BaseClient {

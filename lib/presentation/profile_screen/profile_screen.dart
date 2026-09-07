@@ -13,6 +13,7 @@ import '../../services/currency_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/ad_helper.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../../widgets/global_banner_ad_widget.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -49,8 +50,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     SubscriptionService.instance.load().then((_) {
       if (mounted) setState(() {});
     });
-    // Trigger Interstitial ad on profile view
-    AdHelper.showInterstitial(onAdClosed: () {});
+    // Trigger Interstitial ad on profile view with cooldown
+    AdHelper.showInterstitialWithCooldown(onAdClosed: () {});
     SubscriptionService.instance.addListener(_onSubscriptionChanged);
     _loadUserProfile();
     _loadSavedProperties();
@@ -112,6 +113,19 @@ class _ProfileScreenState extends State<ProfileScreen>
               ? 'Membre depuis ${monthNames[createdAt.month - 1]} ${createdAt.year}'
               : 'Membre récent';
         });
+        
+        final langCode = data['language_code'] as String?;
+        if (langCode != null && langCode.isNotEmpty) {
+          if (mounted) {
+            LanguageService.instance.setContext(context);
+          }
+          LanguageService.instance.setLanguage(langCode);
+        }
+        
+        final currCode = data['currency_code'] as String?;
+        if (currCode != null && currCode.isNotEmpty) {
+          CurrencyService.instance.setCurrency(currCode);
+        }
       }
     } catch (_) {
       // silently fail
@@ -278,7 +292,13 @@ class _ProfileScreenState extends State<ProfileScreen>
       body: isTablet ? _buildTabletLayout() : _buildPhoneLayout(),
       bottomNavigationBar: isTablet
           ? null
-          : AppNavigation(currentIndex: _currentNavIndex, onTap: _onNavTap),
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const GlobalBannerAdWidget(),
+                AppNavigation(currentIndex: _currentNavIndex, onTap: _onNavTap),
+              ],
+            ),
     );
   }
 
@@ -313,7 +333,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget _buildSliverAppBar(bool innerBoxIsScrolled) {
     return SliverAppBar(
-      expandedHeight: 280,
+      expandedHeight: 310,
       pinned: true,
       backgroundColor: AppTheme.surface,
       elevation: 0,
@@ -364,8 +384,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Container(
       color: AppTheme.surface,
       padding: EdgeInsets.fromLTRB(4.w, 6.h, 4.w, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,11 +402,29 @@ class _ProfileScreenState extends State<ProfileScreen>
           SizedBox(height: 1.5.h),
           _buildStatsRow(),
         ],
+        ),
       ),
     );
   }
 
   Widget _buildAvatar() {
+    final bool hasNetworkAvatar = _avatarUrl.isNotEmpty &&
+        (_avatarUrl.startsWith('http://') || _avatarUrl.startsWith('https://'));
+
+    final Widget initialAvatar = Container(
+      color: AppTheme.primary.withAlpha(20),
+      child: Center(
+        child: Text(
+          _fullName.isNotEmpty ? _fullName[0].toUpperCase() : '?',
+          style: GoogleFonts.outfit(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.primary,
+          ),
+        ),
+      ),
+    );
+
     return GestureDetector(
       onTap: () => _showEditProfileSheet(context),
       child: Stack(
@@ -397,29 +437,16 @@ class _ProfileScreenState extends State<ProfileScreen>
               border: Border.all(color: AppTheme.border, width: 2),
             ),
             child: ClipOval(
-              child: _avatarUrl.isNotEmpty
+              child: hasNetworkAvatar
                   ? CustomImageWidget(
                       imageUrl: _avatarUrl,
                       width: 72,
                       height: 72,
                       fit: BoxFit.cover,
+                      errorWidget: initialAvatar,
                       semanticLabel: 'Photo de profil de $_fullName',
                     )
-                  : Container(
-                      color: AppTheme.primary.withAlpha(20),
-                      child: Center(
-                        child: Text(
-                          _fullName.isNotEmpty
-                              ? _fullName[0].toUpperCase()
-                              : '?',
-                          style: GoogleFonts.outfit(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                      ),
-                    ),
+                  : initialAvatar,
             ),
           ),
           Positioned(
@@ -487,11 +514,14 @@ class _ProfileScreenState extends State<ProfileScreen>
             children: [
               Icon(Icons.phone_outlined, size: 13, color: AppTheme.muted),
               const SizedBox(width: 4),
-              Text(
-                _phone,
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
+              Expanded(
+                child: Text(
+                  _phone,
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -602,56 +632,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
             _buildStatChip(
               Icons.favorite_outline_rounded,
               '${_savedProperties.length} ${tr("favorites")}',
               AppTheme.accent,
-            ),
-            const SizedBox(width: 8),
-            // Rewarded Video Ad button to gain premium status for 24h
-            GestureDetector(
-              onTap: () {
-                AdHelper.showRewarded(
-                  onUserEarnedReward: (reward) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Félicitations ! Vous avez gagné 24h d\'accès Premium !',
-                          style: GoogleFonts.outfit(fontSize: 13, color: Colors.white),
-                        ),
-                        backgroundColor: AppTheme.success,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    );
-                  },
-                  onAdClosed: () {},
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withAlpha(20),
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(color: AppTheme.primary.withAlpha(60)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.play_circle_fill_rounded, size: 12, color: AppTheme.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Débloquer Premium (Pub)',
-                      style: GoogleFonts.outfit(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -698,12 +686,26 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
     }
 
-    final color = sub.plan == SubscriptionPlan.hotel
-        ? AppTheme.primary
-        : const Color(0xFF7C3AED);
-    final icon = sub.plan == SubscriptionPlan.hotel
-        ? Icons.hotel_rounded
-        : Icons.apartment_rounded;
+    Color color;
+    IconData icon;
+    
+    switch (sub.plan) {
+      case SubscriptionPlan.plus:
+        color = const Color(0xFF0ea5e9);
+        icon = Icons.verified_rounded;
+        break;
+      case SubscriptionPlan.pro:
+        color = const Color(0xFF8b5cf6);
+        icon = Icons.domain_rounded;
+        break;
+      case SubscriptionPlan.ultra:
+        color = const Color(0xFFf59e0b);
+        icon = Icons.workspace_premium_rounded;
+        break;
+      default:
+        color = AppTheme.primary;
+        icon = Icons.star_rounded;
+    }
 
     return GestureDetector(
       onTap: () =>
@@ -1162,9 +1164,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     final sub = SubscriptionService.instance.current;
     final isActive = sub.isActive;
     final color = isActive
-        ? (sub.plan == SubscriptionPlan.hotel
-              ? AppTheme.primary
-              : const Color(0xFF7C3AED))
+        ? (sub.plan == SubscriptionPlan.ultra
+              ? const Color(0xFFf59e0b) // Gold
+              : sub.plan == SubscriptionPlan.pro
+                  ? const Color(0xFF8b5cf6) // Purple
+                  : const Color(0xFF0ea5e9)) // Blue
         : AppTheme.muted;
 
     return Container(

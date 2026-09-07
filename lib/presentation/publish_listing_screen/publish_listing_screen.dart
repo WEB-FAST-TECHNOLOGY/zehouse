@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:confetti/confetti.dart';
+import '../../services/ad_helper.dart';
 import 'dart:io';
 
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../../services/subscription_service.dart';
 import '../../services/supabase_service.dart';
+import '../../services/currency_service.dart';
 import './widgets/publish_step1_widget.dart';
 import './widgets/publish_step2_widget.dart';
 import './widgets/publish_step3_widget.dart';
@@ -27,6 +31,9 @@ class _PublishListingScreenState extends State<PublishListingScreen>
   bool _isLoading = false;
   bool _showPaymentGate = false;
   int _userListingCount = 0;
+  
+  RewardedAd? _rewardedAd;
+  bool _isRewardedAdLoaded = false;
   late AnimationController _stepController;
   late Animation<Offset> _slideAnimation;
 
@@ -61,6 +68,24 @@ class _PublishListingScreenState extends State<PublishListingScreen>
         );
     _stepController.forward();
     _loadUserListingCount();
+    _loadRewardedAd();
+  }
+
+  void _loadRewardedAd() {
+    RewardedAd.load(
+      adUnitId: AdHelper.rewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewardedAd = ad;
+          _isRewardedAdLoaded = true;
+        },
+        onAdFailedToLoad: (error) {
+          debugPrint('RewardedAd failed to load: $error');
+          _isRewardedAdLoaded = false;
+        },
+      ),
+    );
   }
 
   Future<void> _loadUserListingCount() async {
@@ -80,35 +105,76 @@ class _PublishListingScreenState extends State<PublishListingScreen>
   @override
   void dispose() {
     _stepController.dispose();
+    _rewardedAd?.dispose();
     super.dispose();
   }
 
-  /// Returns true if the current user is a professional (has an active subscription).
-  bool get _isProfessional {
-    final sub = SubscriptionService.instance.current;
-    return sub.isActive && sub.plan != SubscriptionPlan.none;
-  }
-
-  void _nextStep() {
+  Future<void> _nextStep() async {
     if (_currentStep < 2) {
       _stepController.reset();
       setState(() => _currentStep++);
       _stepController.forward();
     } else {
+      // Validate phone number before proceeding
+      setState(() => _isLoading = true);
+      final user = SupabaseService.instance.client.auth.currentUser;
+      if (user != null) {
+        try {
+          final profile = await SupabaseService.instance.client
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', user.id)
+              .single();
+          if (profile['phone'] == null || profile['phone'].toString().trim().isEmpty) {
+            setState(() => _isLoading = false);
+            _showPhoneRequiredDialog();
+            return;
+          }
+        } catch (_) {}
+      }
+      setState(() => _isLoading = false);
+
       // Last step: check if payment is needed
-      if (_isProfessional) {
-        // Professional users publish for free
+      final sub = SubscriptionService.instance.current;
+      if (sub.canPublishWithoutFee(_userListingCount)) {
+        // Can publish for free without paying $10 (subscription or trial active, and within quota)
         _submitListing();
       } else {
-        // Non-professional: check free tier limit (10 listings max)
-        if (_userListingCount >= SubscriptionService.freeTierMaxListings) {
-          _showListingLimitDialog();
-          return;
-        }
-        // Non-professional users must pay $10
+        // Limit reached or no active subscription/trial -> Show $10 payment gate
         setState(() => _showPaymentGate = true);
       }
     }
+  }
+
+  void _showPhoneRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Numéro requis', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+        content: Text(
+          'Vous devez ajouter un numéro de téléphone à votre profil pour que les intéressés puissent vous contacter.',
+          style: GoogleFonts.outfit(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Annuler', style: GoogleFonts.outfit(color: AppTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, AppRoutes.profileScreen);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Mettre à jour', style: GoogleFonts.outfit(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _prevStep() {
@@ -128,9 +194,94 @@ class _PublishListingScreenState extends State<PublishListingScreen>
   Future<void> _submitListing() async {
     setState(() {
       _showPaymentGate = false;
-      _isLoading = true;
     });
-    
+
+    if (_isRewardedAdLoaded && _rewardedAd != null) {
+      final shouldWatchAd = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Soutenir l\'application',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+          ),
+          content: Text(
+            'Pour publier cette annonce gratuitement, vous allez visionner une courte vidéo publicitaire.\n\nVous pouvez également passer à un abonnement premium pour ne plus avoir de publicités !',
+            style: GoogleFonts.outfit(color: AppTheme.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+                Navigator.pushNamed(context, AppRoutes.subscriptionPlansScreen);
+              },
+              child: Text(
+                'Voir les abonnements',
+                style: GoogleFonts.outfit(color: AppTheme.primary, fontWeight: FontWeight.w600),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(
+                'Regarder la vidéo',
+                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldWatchAd == true) {
+        bool userEarnedReward = false;
+        _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+          onAdDismissedFullScreenContent: (ad) {
+            ad.dispose();
+            _isRewardedAdLoaded = false;
+            if (userEarnedReward) {
+              setState(() => _isLoading = true);
+              _performSubmitListing();
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Vous devez visionner la vidéo jusqu\'à la fin pour publier.', style: GoogleFonts.outfit()),
+                    backgroundColor: AppTheme.warning,
+                  ),
+                );
+              }
+            }
+            // Reload ad for next time
+            _loadRewardedAd();
+          },
+          onAdFailedToShowFullScreenContent: (ad, error) {
+            ad.dispose();
+            _isRewardedAdLoaded = false;
+            setState(() => _isLoading = true);
+            _performSubmitListing(); // fallback
+            _loadRewardedAd();
+          },
+        );
+        try {
+          _rewardedAd!.show(onUserEarnedReward: (ad, reward) {
+            userEarnedReward = true;
+          });
+        } catch (e) {
+          debugPrint('Error showing rewarded ad: $e');
+          setState(() => _isLoading = true);
+          _performSubmitListing();
+        }
+      }
+    } else {
+      setState(() => _isLoading = true);
+      _performSubmitListing();
+    }
+  }
+
+  Future<void> _performSubmitListing() async {
     try {
       final user = SupabaseService.instance.client.auth.currentUser;
       if (user == null) throw Exception('Non connecté');
@@ -139,19 +290,24 @@ class _PublishListingScreenState extends State<PublishListingScreen>
       final video = _formData['video'] as XFile?;
       
       String mainImageUrl = '';
+      List<String> imageUrls = [];
       String videoUrl = '';
       final uuid = const Uuid().v4();
 
-      // Upload main photo (for now we only save the first photo URL as image_url in DB)
+      // Upload all photos
       if (photos.isNotEmpty) {
-        final ext = photos.first.path.split('.').last;
-        final path = '${user.id}/$uuid/main.$ext';
-        await SupabaseService.instance.client.storage
-            .from('listings_media')
-            .upload(path, File(photos.first.path));
-        mainImageUrl = SupabaseService.instance.client.storage
-            .from('listings_media')
-            .getPublicUrl(path);
+        for (int i = 0; i < photos.length; i++) {
+          final ext = photos[i].path.split('.').last;
+          final path = '${user.id}/$uuid/photo_$i.$ext';
+          await SupabaseService.instance.client.storage
+              .from('listings_media')
+              .upload(path, File(photos[i].path));
+          final url = SupabaseService.instance.client.storage
+              .from('listings_media')
+              .getPublicUrl(path);
+          imageUrls.add(url);
+          if (i == 0) mainImageUrl = url; // fallback for older clients
+        }
       }
 
       // Upload video if present
@@ -171,14 +327,16 @@ class _PublishListingScreenState extends State<PublishListingScreen>
         'user_id': user.id,
         'title': _formData['title'],
         'description': _formData['description'],
-        'price': int.tryParse(_formData['price']) ?? 0,
+        'price': ((int.tryParse(_formData['price']) ?? 0) / CurrencyService.instance.currentCurrency.rateFromEur).round(),
         'surface': double.tryParse(_formData['surface']) ?? 0.0,
         'rooms': int.tryParse(_formData['rooms']) ?? 1,
         'listing_type': _formData['listingType'],
         'property_type': _formData['propertyType'],
         'address': _formData['address'],
         'image_url': mainImageUrl,
+        'image_urls': imageUrls, // new column required
         'video_url': videoUrl,
+        'is_active': true,
         // Optional: generate random coordinates for demo
         'lat': 48.8566 + (DateTime.now().millisecond % 100) / 10000,
         'lng': 2.3522 + (DateTime.now().millisecond % 100) / 10000,
@@ -202,72 +360,23 @@ class _PublishListingScreenState extends State<PublishListingScreen>
   }
 
   void _showSuccessDialog() {
-    showDialog(
+    showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.all(28),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppTheme.successLight,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.check_rounded,
-                size: 32,
-                color: AppTheme.success,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Annonce publiée !',
-              style: GoogleFonts.outfit(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Votre annonce est maintenant visible sur la carte et dans les résultats de recherche.',
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  AppRoutes.myListingsScreen,
-                  (route) => false,
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48),
-                backgroundColor: AppTheme.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Voir mes annonces',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-      ),
+      barrierColor: Colors.black.withOpacity(0.6),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const _FuturisticSuccessDialog();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return Transform.scale(
+          scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack).value,
+          child: Opacity(
+            opacity: animation.value,
+            child: child,
+          ),
+        );
+      },
     );
   }
 
@@ -474,9 +583,7 @@ class _PublishListingScreenState extends State<PublishListingScreen>
                                     )
                                   : Text(
                                       _currentStep == 2
-                                          ? (_isProfessional
-                                                ? 'Publier l\'annonce'
-                                                : 'Payer & Publier (10\$)')
+                                          ? 'Publier'
                                           : 'Continuer',
                                       style: GoogleFonts.outfit(
                                         fontSize: 15,
@@ -516,5 +623,128 @@ class _PublishListingScreenState extends State<PublishListingScreen>
       default:
         return const SizedBox();
     }
+  }
+}
+
+class _FuturisticSuccessDialog extends StatefulWidget {
+  const _FuturisticSuccessDialog();
+
+  @override
+  State<_FuturisticSuccessDialog> createState() => _FuturisticSuccessDialogState();
+}
+
+class _FuturisticSuccessDialogState extends State<_FuturisticSuccessDialog> {
+  late ConfettiController _confettiController;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+    _confettiController.play();
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: AppTheme.surface.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppTheme.primary.withOpacity(0.3), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.2),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.rocket_launch_rounded, size: 40, color: AppTheme.primary),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Félicitations !',
+                  style: GoogleFonts.outfit(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Votre annonce est désormais en ligne et prête à être découverte.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    color: AppTheme.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.myListingsScreen, (route) => false);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      'Voir mes annonces',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: -50,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: 3.14 / 2, // point downwards
+              maxBlastForce: 20,
+              minBlastForce: 10,
+              emissionFrequency: 0.05,
+              numberOfParticles: 20,
+              gravity: 0.2,
+              colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

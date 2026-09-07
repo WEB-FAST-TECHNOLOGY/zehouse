@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show RealtimeChannel;
 
 import '../../core/app_export.dart';
 import '../../services/messaging_service.dart';
+import '../../widgets/global_banner_ad_widget.dart';
 import './widgets/chat_view_widget.dart';
 import './widgets/messages_list_widget.dart';
 
@@ -20,6 +21,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<ConversationModel> _conversations = [];
   bool _isLoading = true;
   String? _error;
+  bool _initializedArgs = false;
 
   RealtimeChannel? _conversationsChannel;
 
@@ -28,6 +30,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
     super.initState();
     _loadConversations();
     _subscribeToConversations();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initializedArgs) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null && args['conversationId'] != null) {
+        _selectedConversationId = args['conversationId'] as String;
+      }
+      _initializedArgs = true;
+    }
   }
 
   @override
@@ -335,6 +349,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       setState(() => _selectedConversationId = id),
                 ),
         ),
+        const GlobalBannerAdWidget(),
       ],
     );
   }

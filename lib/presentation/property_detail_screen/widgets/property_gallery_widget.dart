@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_image_widget.dart';
 
 class PropertyGalleryWidget extends StatelessWidget {
@@ -16,6 +18,13 @@ class PropertyGalleryWidget extends StatelessWidget {
     this.isTablet = false,
   });
 
+  Future<void> _launchVideo(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -24,12 +33,42 @@ class PropertyGalleryWidget extends StatelessWidget {
           itemCount: images.length,
           onPageChanged: onPageChanged,
           itemBuilder: (context, index) {
-            return CustomImageWidget(
-              imageUrl: images[index]['url'] as String,
-              width: double.infinity,
-              height: isTablet ? double.infinity : 300,
-              fit: BoxFit.cover,
-              semanticLabel: images[index]['semanticLabel'] as String,
+            final isVideo = images[index]['isVideo'] == true;
+            return GestureDetector(
+              onTap: isVideo && images[index]['videoUrl'] != null
+                  ? () => _launchVideo(images[index]['videoUrl'] as String)
+                  : null,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CustomImageWidget(
+                    imageUrl: images[index]['url'] as String,
+                    width: double.infinity,
+                    height: isTablet ? double.infinity : 300,
+                    fit: BoxFit.cover,
+                    semanticLabel: images[index]['semanticLabel'] as String,
+                  ),
+                  if (isVideo)
+                    Container(
+                      color: Colors.black.withAlpha(77),
+                      child: Center(
+                        child: Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(200),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            size: 40,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             );
           },
         ),

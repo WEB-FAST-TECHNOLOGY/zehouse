@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
+import '../../../../env.dart';
 
 import '../../../theme/app_theme.dart';
 import '../../../services/cinetpay_web.dart'
     if (dart.library.io) '../../../services/cinetpay_io.dart';
 import '../../../services/moneroo_web.dart'
     if (dart.library.io) '../../../services/moneroo_io.dart';
+import '../../../services/currency_service.dart';
 
 /// Payment gate that charges non-professional users $10 before publishing a listing.
 class ListingPaymentGateWidget extends StatefulWidget {
@@ -25,22 +27,28 @@ class ListingPaymentGateWidget extends StatefulWidget {
 }
 
 class _ListingPaymentGateWidgetState extends State<ListingPaymentGateWidget> {
-  static const String _cinetpayApiKey = String.fromEnvironment(
-    'CINETPAY_API_KEY',
-  );
-  static const int _cinetpaySiteId = int.fromEnvironment(
-    'CINETPAY_SITE_ID',
-    defaultValue: 0,
-  );
-  static const String _monerooApiKey = String.fromEnvironment(
-    'MONEROO_API_KEY',
-  );
+  static final String _cinetpayApiKey = Env.cinetpayApiKey;
+  static final String _cinetpayApiPassword = Env.cinetpayApiPassword;
+  static final String _cinetpaySiteId = Env.cinetpaySiteId;
+  static final String _monerooApiKey = Env.monerooApiKey;
 
   static const int _listingFeeUsd = 10;
-  // 10 USD ≈ 6000 XOF (approximate)
-  static const int _listingFeeXof = 6000;
+  // 10 USD ≈ 6000 XAF (Cameroun)
 
   void _payCinetPay() {
+    // CinetPay compte Cameroun → toujours XAF
+    // (même si l'utilisateur affiche en EUR/USD, on paye en XAF sur ce compte)
+    final String cinetpayCurrency = 'XAF';
+    const int amountInXaf = 6000; // ~10 USD
+
+
+    _printYellowLog(
+      'INITIATING CINETPAY PUBLISH PAYMENT\n'
+      'Amount: $amountInXaf $cinetpayCurrency\n'
+      'Site ID: $_cinetpaySiteId\n'
+      'API Key: ${_cinetpayApiKey.isEmpty ? 'MISSING' : 'PROVIDED'}'
+    );
+
     final transactionId = const Uuid()
         .v4()
         .replaceAll('-', '')
@@ -53,16 +61,16 @@ class _ListingPaymentGateWidgetState extends State<ListingPaymentGateWidget> {
           title: 'Frais de publication',
           configData: {
             'apikey': _cinetpayApiKey,
+            'api_password': _cinetpayApiPassword,
             'site_id': _cinetpaySiteId,
             'notify_url':
                 'https://zehouse2471.builtwithrocket.new/cinetpay/notify',
             'return_url': 'https://zehouse2471.builtwithrocket.new',
-            'mode': 'PRODUCTION',
           },
           paymentData: {
             'transaction_id': transactionId,
-            'amount': _listingFeeXof,
-            'currency': 'XOF',
+            'amount': amountInXaf,
+            'currency': cinetpayCurrency,
             'channels': 'ALL',
             'description': 'Frais de publication d\'annonce immobilière',
             'lang': 'fr',
@@ -87,6 +95,12 @@ class _ListingPaymentGateWidgetState extends State<ListingPaymentGateWidget> {
   }
 
   void _payMoneroo() {
+    _printYellowLog(
+      'INITIATING MONEROO PUBLISH PAYMENT\n'
+      'Amount: 6000 XAF\n'
+      'API Key: ${_monerooApiKey.isEmpty ? 'MISSING' : 'PROVIDED'}'
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -114,6 +128,13 @@ class _ListingPaymentGateWidgetState extends State<ListingPaymentGateWidget> {
         ),
       ),
     );
+  }
+
+  void _printYellowLog(String message) {
+    debugPrint('\x1B[33m========================================\x1B[0m');
+    debugPrint('\x1B[33m🚀 ZEHOUSE PUBLISH LOG:\x1B[0m');
+    debugPrint('\x1B[33m$message\x1B[0m');
+    debugPrint('\x1B[33m========================================\x1B[0m');
   }
 
   void _showError(String message) {
@@ -256,32 +277,13 @@ class _ListingPaymentGateWidgetState extends State<ListingPaymentGateWidget> {
                 style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
               ),
               const SizedBox(height: 24),
-              // Payment method label
-              Text(
-                'Choisissez votre méthode de paiement',
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // CinetPay button
+              // Bouton de paiement unique
               _PaymentButton(
-                label: 'Payer avec CinetPay',
+                label: 'Accéder au paiement',
                 subtitle: 'Mobile Money, Orange Money, Wave...',
-                icon: Icons.phone_android_rounded,
+                icon: Icons.payment_rounded,
                 color: const Color(0xFF0066CC),
                 onTap: _payCinetPay,
-              ),
-              const SizedBox(height: 12),
-              // Moneroo button
-              _PaymentButton(
-                label: 'Payer avec Moneroo',
-                subtitle: 'Carte bancaire, Mobile Money...',
-                icon: Icons.credit_card_rounded,
-                color: const Color(0xFF6366F1),
-                onTap: _payMoneroo,
               ),
               const SizedBox(height: 24),
               // Cancel

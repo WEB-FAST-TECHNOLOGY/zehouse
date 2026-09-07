@@ -189,5 +189,10 @@
     "role_buyer": "Acheteur",
     "role_seller": "Vendeur",
     "favorites": "favoris",
-    "favorites_tab": "Favoris"
+    "favorites_tab": "Favoris",
+    "role_title": "Vous êtes…",
+    "google_complete_title": "Complétez votre profil",
+    "google_complete_subtitle": "Quelques informations supplémentaires pour personnaliser votre expérience ZEHOUSE.",
+    "google_complete_btn": "Terminer mon inscription",
+    "google_complete_skip": "Passer pour l'instant"
 }

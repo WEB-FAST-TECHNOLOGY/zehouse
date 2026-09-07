@@ -2,6 +2,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_export.dart';
 import '../../services/mapbox_service.dart';
+import '../../services/supabase_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -69,7 +70,10 @@ class _SplashScreenState extends State<SplashScreen>
           if (mounted) {
             final session = Supabase.instance.client.auth.currentSession;
             if (session != null) {
-              Navigator.pushReplacementNamed(context, AppRoutes.mapScreen);
+              await SupabaseService.syncUserPreferences(context);
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, AppRoutes.mapScreen);
+              }
             } else {
               Navigator.pushReplacementNamed(context, AppRoutes.signUpLoginScreen);
             }
@@ -138,7 +142,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Trouvez votre chez-vous',
+                        'Find your home',
                         style: GoogleFonts.outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w400,

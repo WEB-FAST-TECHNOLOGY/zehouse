@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../../../theme/app_theme.dart';
 import '../../../services/mapbox_service.dart';
+import '../../../services/currency_service.dart';
 
 Widget buildMapView({
   required List<Map<String, dynamic>> properties,
@@ -154,11 +155,7 @@ class _MapboxMapViewState extends State<_MapboxMapView> {
         final isSelected = widget.selectedIndex == i;
         final isRent = p['listingType'] == 'rent';
         final price = p['price'] as int;
-        final priceLabel = isRent
-            ? '${price.toString()}€/m'
-            : price >= 1000000
-                ? '${(price / 1000000).toStringAsFixed(1)}M€'
-                : '${(price / 1000).toStringAsFixed(0)}k€';
+        final priceLabel = CurrencyService.instance.format(price, isRent: isRent);
 
         final iconData = _iconForType(p['type'] as String? ?? '');
         final isNew = p['isNew'] as bool? ?? false;

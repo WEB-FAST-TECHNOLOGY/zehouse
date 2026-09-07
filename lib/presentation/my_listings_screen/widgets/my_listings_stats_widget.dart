@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_theme.dart';
@@ -7,6 +8,7 @@ class MyListingsStatsWidget extends StatelessWidget {
   final int totalViews;
   final int totalContacts;
   final int newInquiries;
+  final bool isAdvancedStatsUnlocked;
 
   const MyListingsStatsWidget({
     super.key,
@@ -14,6 +16,7 @@ class MyListingsStatsWidget extends StatelessWidget {
     required this.totalViews,
     required this.totalContacts,
     required this.newInquiries,
+    this.isAdvancedStatsUnlocked = false,
   });
 
   @override
@@ -23,36 +26,76 @@ class MyListingsStatsWidget extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Row(
         children: [
-          _StatCard(
-            value: activeListings.toString(),
-            label: 'Actives',
-            icon: Icons.home_work_rounded,
-            color: AppTheme.primary,
-          ),
-          const SizedBox(width: 10),
-          _StatCard(
-            value: totalViews.toString(),
-            label: 'Vues',
-            icon: Icons.visibility_rounded,
-            color: AppTheme.info,
-          ),
-          const SizedBox(width: 10),
-          _StatCard(
-            value: totalContacts.toString(),
-            label: 'Contacts',
-            icon: Icons.people_rounded,
-            color: AppTheme.success,
-          ),
-          const SizedBox(width: 10),
-          _StatCard(
-            value: newInquiries.toString(),
-            label: 'Nouveaux',
-            icon: Icons.notifications_rounded,
-            color: AppTheme.accent,
-            isAlert: newInquiries > 0,
-          ),
-        ],
-      ),
+            _StatCard(
+              value: activeListings.toString(),
+              label: 'Actives',
+              icon: Icons.home_work_rounded,
+              color: AppTheme.primary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 3,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Row(
+                    children: [
+                      _StatCard(
+                        value: totalViews.toString(),
+                        label: 'Vues',
+                        icon: Icons.visibility_rounded,
+                        color: AppTheme.info,
+                      ),
+                      const SizedBox(width: 10),
+                      _StatCard(
+                        value: totalContacts.toString(),
+                        label: 'Contacts',
+                        icon: Icons.people_rounded,
+                        color: AppTheme.success,
+                      ),
+                      const SizedBox(width: 10),
+                      _StatCard(
+                        value: newInquiries.toString(),
+                        label: 'Nouveaux',
+                        icon: Icons.notifications_rounded,
+                        color: AppTheme.accent,
+                        isAlert: newInquiries > 0,
+                      ),
+                    ],
+                  ),
+                  if (!isAdvancedStatsUnlocked)
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                          child: Container(
+                            color: AppTheme.surface.withAlpha(150),
+                            alignment: Alignment.center,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.lock_outline_rounded, color: AppTheme.primary, size: 20),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Pro requis',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
     );
   }
 }

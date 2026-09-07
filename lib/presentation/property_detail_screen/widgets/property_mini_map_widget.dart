@@ -6,8 +6,10 @@ import 'property_mini_map_web.dart'
 
 class PropertyMiniMapWidget extends StatelessWidget {
   final String address;
+  final double? lat;
+  final double? lng;
 
-  const PropertyMiniMapWidget({super.key, required this.address});
+  const PropertyMiniMapWidget({super.key, required this.address, this.lat, this.lng});
 
   @override
   Widget build(BuildContext context) {
@@ -17,36 +19,40 @@ class PropertyMiniMapWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Localisation',
-            style: GoogleFonts.outfit(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          buildMiniMap(address: address),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(
-                Icons.location_on_outlined,
-                size: 14,
-                color: AppTheme.muted,
+          if (address.isNotEmpty) ...[
+            Text(
+              'Localisation',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  address,
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    color: AppTheme.textSecondary,
+            ),
+            const SizedBox(height: 12),
+          ],
+          buildMiniMap(address: address, lat: lat, lng: lng),
+          if (address.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: AppTheme.muted,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    address,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );

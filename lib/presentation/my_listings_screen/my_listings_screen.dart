@@ -1,7 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_export.dart';
+import '../../services/subscription_service.dart';
 import './widgets/my_listing_card_widget.dart';
 import './widgets/my_listings_stats_widget.dart';
+import '../../services/ad_helper.dart';
+import '../../widgets/global_banner_ad_widget.dart';
 
 class MyListingsScreen extends StatefulWidget {
   const MyListingsScreen({super.key});
@@ -18,11 +21,13 @@ class _MyListingsScreenState extends State<MyListingsScreen>
   bool _isLoading = false;
 
   final List<Map<String, dynamic>> _listingMaps = [];
+  final List<Map<String, dynamic>> _allPublicListings = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+    AdHelper.showInterstitialWithCooldown(onAdClosed: () {});
     _loadMyListings();
   }
 
@@ -34,31 +39,63 @@ class _MyListingsScreenState extends State<MyListingsScreen>
 
   Future<void> _loadMyListings() async {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
 
     if (mounted) setState(() => _isLoading = true);
     try {
-      final response = await Supabase.instance.client
+      // Fetch user's own listings
+      List<Map<String, dynamic>> fetchedListings = [];
+      if (user != null) {
+        final response = await Supabase.instance.client
+            .from('user_listings')
+            .select()
+            .eq('user_id', user.id)
+            .order('created_at', ascending: false);
+
+        fetchedListings = (response as List).map((item) {
+          final createdAt = item['created_at'] != null ? DateTime.tryParse(item['created_at']) : null;
+          return {
+            'id': item['id'].toString(),
+            'title': item['title'] ?? '',
+            'address': item['address'] ?? '',
+            'price': (item['price'] as num?)?.toInt() ?? 0,
+            'surface': (item['surface'] as num?)?.toDouble() ?? 0.0,
+            'rooms': (item['rooms'] as num?)?.toInt() ?? 1,
+            'type': item['property_type'] ?? 'Appartement',
+            'listingType': item['listing_type'] ?? 'sale',
+            'status': (item['is_active'] == true) ? 'published' : 'archived',
+            'views': item['views_count'] ?? 0,
+            'contacts': item['contacts_count'] ?? 0,
+            'daysActive': createdAt != null ? DateTime.now().difference(createdAt).inDays : 0,
+            'imageUrl': item['image_url'] ?? '',
+            'semanticLabel': item['title'] ?? 'Listing image',
+            'priceDropped': false,
+          };
+        }).toList();
+      }
+
+      // Fetch all public listings across platform
+      final allResponse = await Supabase.instance.client
           .from('user_listings')
           .select()
-          .eq('user_id', user.id)
           .order('created_at', ascending: false);
 
-      final fetchedListings = (response as List).map((item) {
+      final fetchedAll = (allResponse as List).map((item) {
+        final createdAt = item['created_at'] != null ? DateTime.tryParse(item['created_at']) : null;
         return {
           'id': item['id'].toString(),
           'title': item['title'] ?? '',
           'address': item['address'] ?? '',
-          'price': item['price'] ?? 0,
+          'price': (item['price'] as num?)?.toInt() ?? 0,
           'surface': (item['surface'] as num?)?.toDouble() ?? 0.0,
-          'rooms': item['rooms'] ?? 1,
+          'rooms': (item['rooms'] as num?)?.toInt() ?? 1,
           'type': item['property_type'] ?? 'Appartement',
           'listingType': item['listing_type'] ?? 'sale',
           'status': (item['is_active'] == true) ? 'published' : 'archived',
-          'views': 45,
-          'contacts': 2,
-          'daysActive': 3,
-          'imageUrl': item['image_url'] ?? 'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg',
+          'views': item['views_count'] ?? 0,
+          'contacts': item['contacts_count'] ?? 0,
+          'daysActive': createdAt != null ? DateTime.now().difference(createdAt).inDays : 0,
+          'imageUrl': item['image_url'] ?? '',
+          'semanticLabel': item['title'] ?? 'Listing image',
           'priceDropped': false,
         };
       }).toList();
@@ -67,6 +104,8 @@ class _MyListingsScreenState extends State<MyListingsScreen>
         setState(() {
           _listingMaps.clear();
           _listingMaps.addAll(fetchedListings);
+          _allPublicListings.clear();
+          _allPublicListings.addAll(fetchedAll);
           _isLoading = false;
         });
       }
@@ -235,6 +274,8 @@ class _MyListingsScreenState extends State<MyListingsScreen>
       0,
       (sum, l) => sum + (l['contacts'] as int),
     );
+    final userPlan = SubscriptionService.instance.current.plan;
+    final isProOrUltra = userPlan == SubscriptionPlan.pro || userPlan == SubscriptionPlan.ultra;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -285,12 +326,13 @@ class _MyListingsScreenState extends State<MyListingsScreen>
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   tabs: [
-                    Tab(text: 'Toutes (${_getCountForStatus('all')})'),
+                    Tab(text: 'Mes annonces (${_getCountForStatus('all')})'),
                     Tab(text: 'Publiées ($activeCount)'),
                     Tab(
                       text: 'Sous offre (${_getCountForStatus('underOffer')})',
                     ),
                     Tab(text: 'Archivées (${_getCountForStatus('archived')})'),
+                    Tab(text: 'Toutes les annonces (${_allPublicListings.length})'),
                   ],
                 ),
               ),
@@ -300,11 +342,17 @@ class _MyListingsScreenState extends State<MyListingsScreen>
         body: Column(
           children: [
             // Stats summary
-            MyListingsStatsWidget(
-              activeListings: activeCount,
-              totalViews: totalViews,
-              totalContacts: totalContacts,
-              newInquiries: 3,
+            GestureDetector(
+              onTap: !isProOrUltra
+                  ? () => Navigator.pushNamed(context, AppRoutes.subscriptionPlansScreen)
+                  : null,
+              child: MyListingsStatsWidget(
+                activeListings: activeCount,
+                totalViews: totalViews,
+                totalContacts: totalContacts,
+                newInquiries: 3,
+                isAdvancedStatsUnlocked: isProOrUltra,
+              ),
             ),
 
             // Tab content
@@ -315,27 +363,62 @@ class _MyListingsScreenState extends State<MyListingsScreen>
                     )
                   : TabBarView(
                       controller: _tabController,
-                      children: ['all', 'published', 'underOffer', 'archived'].map((
-                        status,
-                      ) {
-                        final listings = _getFilteredListings(status);
-                        if (listings.isEmpty) {
-                          return EmptyStateWidget(
-                            icon: Icons.home_work_outlined,
-                            title: 'Aucune annonce',
-                            description:
-                                'Vous n\'avez pas encore d\'annonce dans cette catégorie.',
-                            ctaLabel: 'Publier une annonce',
-                            onCta: () => Navigator.pushNamed(
-                              context,
-                              AppRoutes.publishListingScreen,
+                      children: [
+                        ...['all', 'published', 'underOffer', 'archived'].map((status) {
+                          final listings = _getFilteredListings(status);
+                          if (listings.isEmpty) {
+                            return EmptyStateWidget(
+                              icon: Icons.home_work_outlined,
+                              title: 'Aucune annonce',
+                              description: 'Vous n\'avez pas encore d\'annonce dans cette catégorie.',
+                              ctaLabel: 'Publier une annonce',
+                              onCta: () => Navigator.pushNamed(context, AppRoutes.publishListingScreen),
+                            );
+                          }
+                          return RefreshIndicator(
+                            onRefresh: _loadMyListings,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: listings.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) => MyListingCardWidget(
+                                listing: listings[index],
+                                onActionsTap: () => _showListingActions(context, listings[index]),
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.propertyDetailScreen,
+                                  arguments: {'id': listings[index]['id']},
+                                ),
+                              ),
                             ),
                           );
-                        }
-                        return isTablet
-                            ? _buildTabletGrid(listings)
-                            : _buildPhoneList(listings);
-                      }).toList(),
+                        }),
+                        // 5th Tab: All Public Listings
+                        if (_allPublicListings.isEmpty)
+                          EmptyStateWidget(
+                            icon: Icons.search_off_rounded,
+                            title: 'Aucune annonce publique',
+                            description: 'Aucune annonce n\'est encore disponible sur la plateforme.',
+                          )
+                        else
+                          RefreshIndicator(
+                            onRefresh: _loadMyListings,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _allPublicListings.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) => MyListingCardWidget(
+                                listing: _allPublicListings[index],
+                                onActionsTap: () => _showListingActions(context, _allPublicListings[index]),
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.propertyDetailScreen,
+                                  arguments: {'id': _allPublicListings[index]['id']},
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
             ),
           ],
@@ -352,9 +435,15 @@ class _MyListingsScreenState extends State<MyListingsScreen>
           style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
         ),
       ),
-      bottomNavigationBar: AppNavigation(
-        currentIndex: _currentNavIndex,
-        onTap: _onNavTap,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const GlobalBannerAdWidget(),
+          AppNavigation(
+            currentIndex: _currentNavIndex,
+            onTap: _onNavTap,
+          ),
+        ],
       ),
     );
   }
@@ -370,7 +459,7 @@ class _MyListingsScreenState extends State<MyListingsScreen>
             listing: listings[index],
             onActionsTap: () => _showListingActions(context, listings[index]),
             onTap: () =>
-                Navigator.pushNamed(context, AppRoutes.propertyDetailScreen),
+                Navigator.pushNamed(context, AppRoutes.propertyDetailScreen, arguments: {'id': listings[index]['id']}),
           ),
         );
       },
@@ -384,7 +473,7 @@ class _MyListingsScreenState extends State<MyListingsScreen>
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.6,
+        childAspectRatio: 0.85,
       ),
       itemCount: listings.length,
       itemBuilder: (context, index) {
@@ -392,7 +481,7 @@ class _MyListingsScreenState extends State<MyListingsScreen>
           listing: listings[index],
           onActionsTap: () => _showListingActions(context, listings[index]),
           onTap: () =>
-              Navigator.pushNamed(context, AppRoutes.propertyDetailScreen),
+              Navigator.pushNamed(context, AppRoutes.propertyDetailScreen, arguments: {'id': listings[index]['id']}),
         );
       },
     );
