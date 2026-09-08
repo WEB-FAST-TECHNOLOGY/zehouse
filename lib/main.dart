@@ -9,6 +9,7 @@ import './services/language_service.dart';
 import './services/mapbox_service.dart';
 import './services/supabase_service.dart';
 import './widgets/custom_error_widget.dart';
+import './env.dart';
 
 import 'services/mapbox_init_web.dart'
     if (dart.library.io) 'services/mapbox_init_io.dart';
@@ -53,6 +54,7 @@ void main() async {
   // Initialize Supabase
   try {
     await SupabaseService.initialize();
+    await Env.init();
   } catch (e) {
     debugPrint('Failed to initialize Supabase: $e');
   }
