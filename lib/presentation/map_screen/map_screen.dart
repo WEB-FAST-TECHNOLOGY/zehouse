@@ -581,8 +581,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const GlobalBannerAdWidget(),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: MapSearchBarWidget(
@@ -608,6 +607,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                         count: _filteredProperties.length,
                       ),
                     ),
+                  const SizedBox(height: 6),
+                  const GlobalBannerAdWidget(),
                 ],
               ),
             ),
