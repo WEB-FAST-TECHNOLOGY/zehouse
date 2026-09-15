@@ -239,6 +239,7 @@ class _PropertyPreviewCard extends StatelessWidget {
     final isRent = property['listingType'] == 'rent';
     final price = property['price'] as int;
     final priceText = CurrencyService.instance.format(price, isRent: isRent);
+    final isSponsored = (property['isSponsored'] as bool?) ?? false;
     final partnerTier = property['partnerTier'] as String?;
     final isUltra = partnerTier == 'ultra';
     final isPro = partnerTier == 'pro';

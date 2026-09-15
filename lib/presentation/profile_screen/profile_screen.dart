@@ -426,7 +426,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
 
-    final subPlan = SubscriptionService.instance.currentInfo.plan;
+    final subPlan = SubscriptionService.instance.current.plan;
     final isUltra = subPlan == SubscriptionPlan.ultra;
     final isPro = subPlan == SubscriptionPlan.pro;
 
