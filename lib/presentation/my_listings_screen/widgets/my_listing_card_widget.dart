@@ -78,31 +78,41 @@ class MyListingCardWidget extends StatelessWidget {
                   left: 10,
                   child: StatusBadgeWidget(status: _getStatus(status)),
                 ),
-                // Price drop badge
-                if (priceDropped)
+                // Partner Tier Badge
+                if (listing['partnerTier'] != null)
                   Positioned(
                     top: 10,
-                    right: 10,
+                    right: priceDropped ? 90 : 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.warning,
+                        color: listing['partnerTier'] == 'ultra'
+                            ? const Color(0xFFE11D48)
+                            : const Color(0xFF0284C7),
                         borderRadius: BorderRadius.circular(100),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.trending_down_rounded,
+                          Icon(
+                            listing['partnerTier'] == 'ultra'
+                                ? Icons.workspace_premium_rounded
+                                : Icons.verified_rounded,
                             size: 12,
                             color: Colors.white,
                           ),
                           const SizedBox(width: 3),
                           Text(
-                            'Prix baissé',
+                            listing['partnerTier'] == 'ultra' ? 'Partenaire Ultra' : 'Partenaire Pro',
                             style: GoogleFonts.outfit(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,

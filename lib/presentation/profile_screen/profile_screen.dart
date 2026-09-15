@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/ad_helper.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../widgets/global_banner_ad_widget.dart';
+import '../../services/advertiser_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -1023,6 +1024,10 @@ class _ProfileScreenState extends State<ProfileScreen>
           _buildSectionHeader('Abonnement'),
           SizedBox(height: 1.h),
           _buildSubscriptionCard(),
+          SizedBox(height: 2.h),
+          _buildSectionHeader('Partenariat & Annonceurs'),
+          SizedBox(height: 1.h),
+          _buildAdvertiserPartnerCard(),
           SizedBox(height: 2.h),
           _buildSectionHeader('Actions'),
           SizedBox(height: 1.h),
@@ -2131,4 +2136,372 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
+
+  Widget _buildAdvertiserPartnerCard() {
+    return FutureBuilder<AdvertiserProfile?>(
+      future: AdvertiserService.instance.getCurrentUserAdvertiserProfile(),
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        final bool isAdvertiser = profile != null && profile.isActive;
+
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isAdvertiser
+                  ? (profile.tier == AdvertiserTier.ultra
+                      ? const [Color(0xFFE11D48), Color(0xFFBE123C)]
+                      : const [Color(0xFF0284C7), Color(0xFF0369A1)])
+                  : const [Color(0xFF4F46E5), Color(0xFF6366F1)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16.0),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6366F1).withAlpha(50),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(40),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isAdvertiser ? Icons.campaign_rounded : Icons.handshake_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isAdvertiser ? profile.tierLabel : 'Partenariat & Annonceurs',
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          isAdvertiser
+                              ? 'Contrat ${profile.contractStatus.toUpperCase()} · Valide'
+                              : 'Faites la promo de Zehouse et gagnez des bannières',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            color: Colors.white.withAlpha(220),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isAdvertiser
+                    ? 'Votre compte dispose d\'avantages partenaires Zehouse (affichage prioritaire de vos annonces & bannières actives sur l\'application).'
+                    : 'Devenez partenaire Zehouse Pro ou Ultra en faisant la promotion de notre application sur vos réseaux sociaux (Instagram, TikTok, FB...) !',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: Colors.white.withAlpha(220),
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showPartnerApplicationSheet(context, profile),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: isAdvertiser
+                        ? (profile.tier == AdvertiserTier.ultra
+                            ? const Color(0xFFE11D48)
+                            : const Color(0xFF0284C7))
+                        : const Color(0xFF4F46E5),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: Icon(
+                    isAdvertiser ? Icons.verified_user_rounded : Icons.send_rounded,
+                    size: 18,
+                  ),
+                  label: Text(
+                    isAdvertiser ? 'Statut du contrat partenaire' : 'Devenir Annonceur / Partenaire',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPartnerApplicationSheet(BuildContext context, AdvertiserProfile? profile) {
+    if (profile != null && profile.isActive) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            profile.tierLabel,
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Annonceur: ${profile.name}', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text('Email: ${profile.email}', style: GoogleFonts.outfit(fontSize: 13)),
+              const SizedBox(height: 4),
+              Text('Statut contrat: ${profile.contractStatus.toUpperCase()}', style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.success, fontWeight: FontWeight.bold)),
+              if (profile.contractEnd != null) ...[
+                const SizedBox(height: 4),
+                Text('Date d\'échéance: ${profile.contractEnd.toString().split(" ")[0]}', style: GoogleFonts.outfit(fontSize: 13)),
+              ],
+              const SizedBox(height: 12),
+              Text('Vos bannières publicitaires et badges sont synchronisés avec la console d\'administration Zehouse.', style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Fermer', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: AppTheme.primary)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final nameController = TextEditingController(text: _fullName);
+    final emailController = TextEditingController(text: _email);
+    final phoneController = TextEditingController(text: _phone);
+    final socialController = TextEditingController();
+    final messageController = TextEditingController();
+    String selectedTier = 'pro';
+    bool submitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withAlpha(20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.handshake_rounded, color: Color(0xFF6366F1), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Candidature Annonceur Zehouse',
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'Faites la pub de Zehouse et devenez partenaire',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Nom ou Marque',
+                      prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: 'Adresse e-mail',
+                      prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Téléphone / WhatsApp',
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: socialController,
+                    decoration: InputDecoration(
+                      labelText: 'Liens réseaux sociaux (Instagram, TikTok, FB...)',
+                      hintText: 'ex: instagram.com/moncompte',
+                      prefixIcon: const Icon(Icons.link_rounded, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Offre Souhaitée',
+                    style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          label: Text('ZEHOUSE Pro (Standard)', style: GoogleFonts.outfit(fontSize: 12)),
+                          selected: selectedTier == 'pro',
+                          selectedColor: const Color(0xFF0284C7).withAlpha(40),
+                          onSelected: (val) {
+                            if (val) setSheetState(() => selectedTier = 'pro');
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: Text('ZEHOUSE Ultra (Bannières Max)', style: GoogleFonts.outfit(fontSize: 12)),
+                          selected: selectedTier == 'ultra',
+                          selectedColor: const Color(0xFFE11D48).withAlpha(40),
+                          onSelected: (val) {
+                            if (val) setSheetState(() => selectedTier = 'ultra');
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: messageController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Message ou Détails de votre promotion',
+                      hintText: 'Décrivez comment vous allez promouvoir l\'application Zehouse...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: submitting
+                          ? null
+                          : () async {
+                              if (nameController.text.isEmpty || emailController.text.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Veuillez remplir le nom et l\'email')),
+                                );
+                                return;
+                              }
+                              setSheetState(() => submitting = true);
+                              final ok = await AdvertiserService.instance.submitPartnerApplication(
+                                name: nameController.text.trim(),
+                                email: emailController.text.trim(),
+                                phone: phoneController.text.trim(),
+                                socialChannels: socialController.text.trim(),
+                                proposedTier: selectedTier,
+                                message: messageController.text.trim(),
+                              );
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      ok
+                                          ? 'Candidature transmise avec succès ! L\'équipe Zehouse vous recontactera.'
+                                          : 'Candidature soumise ! (Erreur de notification, donnée enregistrée)',
+                                    ),
+                                    backgroundColor: AppTheme.success,
+                                  ),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: submitting
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text('Envoyer ma candidature', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+
