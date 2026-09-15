@@ -239,7 +239,9 @@ class _PropertyPreviewCard extends StatelessWidget {
     final isRent = property['listingType'] == 'rent';
     final price = property['price'] as int;
     final priceText = CurrencyService.instance.format(price, isRent: isRent);
-    final isSponsored = (property['isSponsored'] as bool?) ?? false;
+    final partnerTier = property['partnerTier'] as String?;
+    final isUltra = partnerTier == 'ultra';
+    final isPro = partnerTier == 'pro';
 
     return GestureDetector(
       onTap: onTap,
@@ -251,19 +253,34 @@ class _PropertyPreviewCard extends StatelessWidget {
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSponsored
-                ? const Color(0xFFF97316)
-                : isSelected
-                ? AppTheme.primary
-                : AppTheme.border,
-            width: isSponsored || isSelected ? 2 : 1,
+            color: isUltra
+                ? const Color(0xFFE11D48)
+                : isPro
+                    ? const Color(0xFF0284C7)
+                    : (isSponsored
+                        ? const Color(0xFFF97316)
+                        : (isSelected ? AppTheme.primary : AppTheme.border)),
+            width: (isUltra || isPro || isSponsored || isSelected) ? 2 : 1,
           ),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(20),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
+            if (isUltra)
+              BoxShadow(
+                color: const Color(0xFFE11D48).withOpacity(0.35),
+                blurRadius: 12,
+                spreadRadius: 2,
+              )
+            else if (isPro)
+              BoxShadow(
+                color: const Color(0xFF0284C7).withOpacity(0.30),
+                blurRadius: 10,
+                spreadRadius: 1,
+              )
+            else
+              BoxShadow(
+                color: Colors.black.withAlpha(20),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
           ],
         ),
         child: Column(

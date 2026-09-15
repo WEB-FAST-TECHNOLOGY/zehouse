@@ -26,6 +26,10 @@ class PropertyAgentCardWidget extends StatelessWidget {
         ? 'landlord'
         : 'agent';
 
+    final partnerTier = agent['partnerTier'] as String?;
+    final isUltra = partnerTier == 'ultra';
+    final isPro = partnerTier == 'pro';
+
     return Column(
       children: [
         Container(
@@ -45,16 +49,41 @@ class PropertyAgentCardWidget extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  // Avatar
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: CustomImageWidget(
-                      imageUrl: agent['avatar'] as String?,
-                      name: agent['name'] as String?,
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                      semanticLabel: agent['avatarSemanticLabel'] as String?,
+                  // Avatar with Glowing Halo
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isUltra
+                            ? const Color(0xFFE11D48)
+                            : (isPro ? const Color(0xFF0284C7) : Colors.transparent),
+                        width: (isUltra || isPro) ? 2.5 : 0,
+                      ),
+                      boxShadow: [
+                        if (isUltra)
+                          BoxShadow(
+                            color: const Color(0xFFE11D48).withOpacity(0.5),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          )
+                        else if (isPro)
+                          BoxShadow(
+                            color: const Color(0xFF0284C7).withOpacity(0.4),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: CustomImageWidget(
+                        imageUrl: agent['avatar'] as String?,
+                        name: agent['name'] as String?,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        semanticLabel: agent['avatarSemanticLabel'] as String?,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -65,13 +94,43 @@ class PropertyAgentCardWidget extends StatelessWidget {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(
-                                agent['name'] as String,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.textPrimary,
-                                ),
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      agent['name'] as String,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isUltra || isPro) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isUltra
+                                            ? const Color(0xFFE11D48)
+                                            : const Color(0xFF0284C7),
+                                        borderRadius: BorderRadius.circular(100),
+                                      ),
+                                      child: Text(
+                                        isUltra ? 'PRO ULTRA' : 'PRO',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                             VerifiedBadgeWidget(

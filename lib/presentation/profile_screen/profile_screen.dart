@@ -426,6 +426,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
 
+    final subPlan = SubscriptionService.instance.currentInfo.plan;
+    final isUltra = subPlan == SubscriptionPlan.ultra;
+    final isPro = subPlan == SubscriptionPlan.pro;
+
     return GestureDetector(
       onTap: () => _showEditProfileSheet(context),
       child: Stack(
@@ -435,7 +439,26 @@ class _ProfileScreenState extends State<ProfileScreen>
             height: 72,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.border, width: 2),
+              border: Border.all(
+                color: isUltra
+                    ? const Color(0xFFE11D48)
+                    : (isPro ? const Color(0xFF0284C7) : AppTheme.border),
+                width: (isUltra || isPro) ? 3 : 2,
+              ),
+              boxShadow: [
+                if (isUltra)
+                  BoxShadow(
+                    color: const Color(0xFFE11D48).withOpacity(0.50),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  )
+                else if (isPro)
+                  BoxShadow(
+                    color: const Color(0xFF0284C7).withOpacity(0.40),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+              ],
             ),
             child: ClipOval(
               child: hasNetworkAvatar

@@ -41,6 +41,10 @@ class MyListingCardWidget extends StatelessWidget {
     final isArchived = status == 'archived';
     final priceDropped = listing['priceDropped'] as bool;
 
+    final partnerTier = listing['partnerTier'] as String?;
+    final isUltra = partnerTier == 'ultra';
+    final isPro = partnerTier == 'pro';
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -48,8 +52,25 @@ class MyListingCardWidget extends StatelessWidget {
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isArchived ? AppTheme.border : AppTheme.border,
+            color: isUltra
+                ? const Color(0xFFE11D48)
+                : (isPro ? const Color(0xFF0284C7) : AppTheme.border),
+            width: (isUltra || isPro) ? 2 : 1,
           ),
+          boxShadow: [
+            if (isUltra)
+              BoxShadow(
+                color: const Color(0xFFE11D48).withOpacity(0.35),
+                blurRadius: 12,
+                spreadRadius: 2,
+              )
+            else if (isPro)
+              BoxShadow(
+                color: const Color(0xFF0284C7).withOpacity(0.30),
+                blurRadius: 10,
+                spreadRadius: 1,
+              ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
