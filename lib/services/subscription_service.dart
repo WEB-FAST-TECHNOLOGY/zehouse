@@ -210,6 +210,30 @@ class SubscriptionService {
                 hasUsedTrial: true,
               );
             }
+
+            // Sync with Advertisers table in Supabase
+            if (user.email != null) {
+              final email = user.email!.trim().toLowerCase();
+              final advRes = await SupabaseService.instance.client
+                  .from('advertisers')
+                  .select()
+                  .or('user_id.eq.${user.id},email.ilike.$email')
+                  .eq('contract_status', 'active')
+                  .order('created_at', ascending: false)
+                  .maybeSingle();
+
+              if (advRes != null) {
+                final tier = (advRes['tier'] as String?)?.toLowerCase();
+                final plan = tier == 'ultra' ? SubscriptionPlan.ultra : SubscriptionPlan.pro;
+                _current = SubscriptionInfo(
+                  plan: plan,
+                  status: SubscriptionStatus.active,
+                  expiryDate: advRes['contract_end'] != null ? DateTime.tryParse(advRes['contract_end']) : null,
+                  sponsoredListings: true,
+                  hasUsedTrial: true,
+                );
+              }
+            }
           }
         } catch (_) {}
 
@@ -226,8 +250,32 @@ class SubscriptionService {
                 status: SubscriptionStatus.inactive,
                 hasUsedTrial: true,
               );
-              await _save();
             }
+
+            // Sync with Advertisers table in Supabase
+            if (user.email != null) {
+              final email = user.email!.trim().toLowerCase();
+              final advRes = await SupabaseService.instance.client
+                  .from('advertisers')
+                  .select()
+                  .or('user_id.eq.${user.id},email.ilike.$email')
+                  .eq('contract_status', 'active')
+                  .order('created_at', ascending: false)
+                  .maybeSingle();
+
+              if (advRes != null) {
+                final tier = (advRes['tier'] as String?)?.toLowerCase();
+                final plan = tier == 'ultra' ? SubscriptionPlan.ultra : SubscriptionPlan.pro;
+                _current = SubscriptionInfo(
+                  plan: plan,
+                  status: SubscriptionStatus.active,
+                  expiryDate: advRes['contract_end'] != null ? DateTime.tryParse(advRes['contract_end']) : null,
+                  sponsoredListings: true,
+                  hasUsedTrial: true,
+                );
+              }
+            }
+            await _save();
           }
         } catch (_) {}
       }

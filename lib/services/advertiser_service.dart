@@ -169,14 +169,25 @@ class AdvertiserService {
       final user = _client.auth.currentUser;
       if (user == null) return null;
 
+      final email = user.email?.trim().toLowerCase();
+      if (email == null || email.isEmpty) return null;
+
       final res = await _client
           .from('advertisers')
           .select()
-          .or('user_id.eq.${user.id},email.eq.${user.email}')
+          .or('user_id.eq.${user.id},email.ilike.$email')
+          .order('created_at', ascending: false)
           .maybeSingle();
 
       if (res != null) {
-        return AdvertiserProfile.fromJson(res);
+        final profile = AdvertiserProfile.fromJson(res);
+        // Link user_id if missing
+        if (res['user_id'] == null && user.id.isNotEmpty) {
+          try {
+            await _client.from('advertisers').update({'user_id': user.id}).eq('id', profile.id);
+          } catch (_) {}
+        }
+        return profile;
       }
     } catch (e) {
       debugPrint('AdvertiserService.getCurrentUserAdvertiserProfile error: $e');
