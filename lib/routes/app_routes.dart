@@ -13,6 +13,7 @@ import '../presentation/language_selection_screen/language_selection_screen.dart
 import '../presentation/terms_screen/terms_screen.dart';
 import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/location_request_screen/location_request_screen.dart';
+import '../presentation/cinetpay_test_screen/cinetpay_test_screen.dart';
 
 class AppRoutes {
   static const String initial = '/';
@@ -30,6 +31,7 @@ class AppRoutes {
   static const String languageSelectionScreen = '/language-selection-screen';
   static const String termsScreen = '/terms-screen';
   static const String locationRequestScreen = '/location-request-screen';
+  static const String cinetpayTestScreen = '/cinetpay-test-screen';
  
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const SplashScreen(),
@@ -48,5 +50,6 @@ class AppRoutes {
         const LanguageSelectionScreen(isFromSettings: true),
     termsScreen: (context) => const TermsScreen(),
     locationRequestScreen: (context) => const LocationRequestScreen(),
+    cinetpayTestScreen: (context) => const CinetPayTestScreen(),
   };
 }
