@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 /// CinetPay API Service — Aurore v1
 /// Flow: 1) POST /v1/oauth/login → token  2) POST /v1/payment (Bearer token)
 class CinetPayApiService {
-  static const String _baseUrl = 'https://api.cinetpay.net/v1';
+  static const String _baseUrl = 'https://api.cinetpay.co/v1';
 
   // ─── Step 1 : OAuth Login → bearer token ───────────────────────────────────
   static Future<String?> _getToken({
