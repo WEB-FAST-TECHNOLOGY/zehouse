@@ -14,7 +14,7 @@ class Env {
   
   static String mapboxAccessToken = 'pk.eyJ1Ijoid2Z0ZWNoIiwiYSI6ImNtbTIzYWZoZTAya2IycnNkcWt6d2VqeDgifQ.syIC6Kua6R-Mi8E7eUp2YQ';
   
-  static String cinetpayApiKey = 'sk_' 'test_Bjy3raj3PdvkuHUzz05di1dV';
+  static String cinetpayApiKey = 'sk_' 'live_2agENjC6mWfWlp26dXVmAGAk';
   static String cinetpayApiPassword = 'F1r9A9n2Ck\$\$';
   static String cinetpaySiteId = '682641';
   

@@ -375,6 +375,26 @@ class SubscriptionService {
       hasUsedTrial: _current.hasUsedTrial,
     );
     await _save();
+
+    // Sync active subscription to Supabase subscription_history for authenticated users
+    try {
+      final user = SupabaseService.instance.client.auth.currentUser;
+      if (user != null) {
+        await SupabaseService.instance.client.from('subscription_history').insert({
+          'user_id': user.id,
+          'plan': plan.name,
+          'billing_cycle': billingCycle.name,
+          'transaction_id': transactionId,
+          'amount': plan == SubscriptionPlan.ultra ? 15000 : (plan == SubscriptionPlan.pro ? 5000 : 2500),
+          'status': 'active',
+          'created_at': now.toIso8601String(),
+          'expires_at': expiry.toIso8601String(),
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to log subscription in Supabase subscription_history: $e');
+    }
+
     _notify();
   }
 
