@@ -191,95 +191,104 @@ class SubscriptionService {
         final json = jsonDecode(raw) as Map<String, dynamic>;
         _current = SubscriptionInfo.fromJson(json);
         _current = _checkExpiry(_current);
-        
-        // Sync with Supabase to prevent local clearing abuse
-        try {
-          final user = SupabaseService.instance.client.auth.currentUser;
-          if (user != null) {
-            final hasUsedTrialMetadata = user.userMetadata?['hasUsedTrial'] as bool? ?? false;
-            if (hasUsedTrialMetadata && !_current.hasUsedTrial) {
-              _current = SubscriptionInfo(
-                plan: _current.plan,
-                billingCycle: _current.billingCycle,
-                status: _current.status,
-                startDate: _current.startDate,
-                trialEndDate: _current.trialEndDate,
-                expiryDate: _current.expiryDate,
-                transactionId: _current.transactionId,
-                sponsoredListings: _current.sponsoredListings,
-                hasUsedTrial: true,
-              );
-            }
-
-            // Sync with Advertisers table in Supabase
-            if (user.email != null) {
-              final email = user.email!.trim().toLowerCase();
-              final advRes = await SupabaseService.instance.client
-                  .from('advertisers')
-                  .select()
-                  .or('user_id.eq.${user.id},email.ilike.$email')
-                  .eq('contract_status', 'active')
-                  .order('created_at', ascending: false)
-                  .maybeSingle();
-
-              if (advRes != null) {
-                final tier = (advRes['tier'] as String?)?.toLowerCase();
-                final plan = tier == 'ultra' ? SubscriptionPlan.ultra : SubscriptionPlan.pro;
-                _current = SubscriptionInfo(
-                  plan: plan,
-                  status: SubscriptionStatus.active,
-                  expiryDate: advRes['contract_end'] != null ? DateTime.tryParse(advRes['contract_end']) : null,
-                  sponsoredListings: true,
-                  hasUsedTrial: true,
-                );
-              }
-            }
-          }
-        } catch (_) {}
-
-        await _save();
-      } else {
-        // No local data, check Supabase
-        try {
-          final user = SupabaseService.instance.client.auth.currentUser;
-          if (user != null) {
-            final hasUsedTrialMetadata = user.userMetadata?['hasUsedTrial'] as bool? ?? false;
-            if (hasUsedTrialMetadata) {
-              _current = SubscriptionInfo(
-                plan: SubscriptionPlan.none,
-                status: SubscriptionStatus.inactive,
-                hasUsedTrial: true,
-              );
-            }
-
-            // Sync with Advertisers table in Supabase
-            if (user.email != null) {
-              final email = user.email!.trim().toLowerCase();
-              final advRes = await SupabaseService.instance.client
-                  .from('advertisers')
-                  .select()
-                  .or('user_id.eq.${user.id},email.ilike.$email')
-                  .eq('contract_status', 'active')
-                  .order('created_at', ascending: false)
-                  .maybeSingle();
-
-              if (advRes != null) {
-                final tier = (advRes['tier'] as String?)?.toLowerCase();
-                final plan = tier == 'ultra' ? SubscriptionPlan.ultra : SubscriptionPlan.pro;
-                _current = SubscriptionInfo(
-                  plan: plan,
-                  status: SubscriptionStatus.active,
-                  expiryDate: advRes['contract_end'] != null ? DateTime.tryParse(advRes['contract_end']) : null,
-                  sponsoredListings: true,
-                  hasUsedTrial: true,
-                );
-              }
-            }
-            await _save();
-          }
-        } catch (_) {}
       }
-    } catch (_) {}
+      
+      // Notify immediately with locally stored subscription state
+      _notify();
+
+      // Async sync with Supabase for logged-in user
+      await _syncWithSupabase();
+    } catch (e) {
+      debugPrint('Error loading SubscriptionService: $e');
+    }
+  }
+
+  Future<void> _syncWithSupabase() async {
+    try {
+      final user = SupabaseService.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final hasUsedTrialMetadata = user.userMetadata?['hasUsedTrial'] as bool? ?? false;
+      if (hasUsedTrialMetadata && !_current.hasUsedTrial) {
+        _current = SubscriptionInfo(
+          plan: _current.plan,
+          billingCycle: _current.billingCycle,
+          status: _current.status,
+          startDate: _current.startDate,
+          trialEndDate: _current.trialEndDate,
+          expiryDate: _current.expiryDate,
+          transactionId: _current.transactionId,
+          sponsoredListings: _current.sponsoredListings,
+          hasUsedTrial: true,
+        );
+      }
+
+      // 1. Check active subscription in subscription_history
+      final subHist = await SupabaseService.instance.client
+          .from('subscription_history')
+          .select()
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', ascending: false)
+          .maybeSingle();
+
+      if (subHist != null) {
+        final planStr = subHist['plan'] as String? ?? '';
+        final plan = SubscriptionPlan.values.firstWhere(
+          (e) => e.name == planStr,
+          orElse: () => SubscriptionPlan.none,
+        );
+
+        final expiresAtStr = subHist['expires_at'] as String?;
+        final expiryDate = expiresAtStr != null ? DateTime.tryParse(expiresAtStr) : null;
+
+        // Check if not expired
+        if (expiryDate == null || DateTime.now().isBefore(expiryDate)) {
+          final cycleStr = subHist['billing_cycle'] as String? ?? 'monthly';
+          final cycle = cycleStr == 'yearly' ? BillingCycle.yearly : BillingCycle.monthly;
+
+          _current = SubscriptionInfo(
+            plan: plan,
+            billingCycle: cycle,
+            status: SubscriptionStatus.active,
+            startDate: subHist['created_at'] != null ? DateTime.tryParse(subHist['created_at']) : null,
+            expiryDate: expiryDate,
+            transactionId: subHist['transaction_id'],
+            sponsoredListings: plan == SubscriptionPlan.ultra || plan == SubscriptionPlan.pro,
+            hasUsedTrial: _current.hasUsedTrial,
+          );
+        }
+      }
+
+      // 2. Check active contract in advertisers table
+      if (user.email != null) {
+        final email = user.email!.trim().toLowerCase();
+        final advRes = await SupabaseService.instance.client
+            .from('advertisers')
+            .select()
+            .or('user_id.eq.${user.id},email.ilike.$email')
+            .eq('contract_status', 'active')
+            .order('created_at', ascending: false)
+            .maybeSingle();
+
+        if (advRes != null) {
+          final tier = (advRes['tier'] as String?)?.toLowerCase();
+          final plan = tier == 'ultra' ? SubscriptionPlan.ultra : SubscriptionPlan.pro;
+          _current = SubscriptionInfo(
+            plan: plan,
+            status: SubscriptionStatus.active,
+            expiryDate: advRes['contract_end'] != null ? DateTime.tryParse(advRes['contract_end']) : null,
+            sponsoredListings: true,
+            hasUsedTrial: true,
+          );
+        }
+      }
+
+      await _save();
+      _notify();
+    } catch (e) {
+      debugPrint('Error syncing SubscriptionService with Supabase: $e');
+    }
   }
 
   SubscriptionInfo _checkExpiry(SubscriptionInfo info) {

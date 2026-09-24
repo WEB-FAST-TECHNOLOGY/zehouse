@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/ad_helper.dart';
+import '../services/subscription_service.dart';
 
 class GlobalNativeAdWidget extends StatefulWidget {
   const GlobalNativeAdWidget({super.key});
@@ -17,7 +18,16 @@ class _GlobalNativeAdWidgetState extends State<GlobalNativeAdWidget> {
   @override
   void initState() {
     super.initState();
-    _loadNativeAd();
+    SubscriptionService.instance.addListener(_onSubscriptionChanged);
+    if (SubscriptionService.instance.current.shouldShowAds) {
+      _loadNativeAd();
+    }
+  }
+
+  void _onSubscriptionChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _loadNativeAd() {
@@ -47,12 +57,16 @@ class _GlobalNativeAdWidgetState extends State<GlobalNativeAdWidget> {
 
   @override
   void dispose() {
+    SubscriptionService.instance.removeListener(_onSubscriptionChanged);
     _nativeAd?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!SubscriptionService.instance.current.shouldShowAds) {
+      return const SizedBox.shrink();
+    }
     if (!_isLoaded || _nativeAd == null) {
       if (kDebugMode) {
         return Container(

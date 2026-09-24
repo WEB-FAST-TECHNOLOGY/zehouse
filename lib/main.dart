@@ -8,6 +8,7 @@ import './services/currency_service.dart';
 import './services/language_service.dart';
 import './services/mapbox_service.dart';
 import './services/supabase_service.dart';
+import './services/subscription_service.dart';
 import './widgets/custom_error_widget.dart';
 import './env.dart';
 
@@ -51,12 +52,13 @@ void main() async {
     debugPrint('Failed to load theme mode preference: $e');
   }
 
-  // Initialize Supabase
+  // Initialize Supabase & Subscription Service
   try {
     await SupabaseService.initialize();
     await Env.init();
+    await SubscriptionService.instance.load();
   } catch (e) {
-    debugPrint('Failed to initialize Supabase: $e');
+    debugPrint('Failed to initialize Supabase/Subscription: $e');
   }
 
   // Initialize Language Service

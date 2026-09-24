@@ -26,8 +26,15 @@ class _GlobalBannerAdWidgetState extends State<GlobalBannerAdWidget> {
   @override
   void initState() {
     super.initState();
+    SubscriptionService.instance.addListener(_onSubscriptionChanged);
     if (SubscriptionService.instance.current.shouldShowAds) {
       _loadPartnerCampaignOrFallback();
+    }
+  }
+
+  void _onSubscriptionChanged() {
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -84,6 +91,7 @@ class _GlobalBannerAdWidgetState extends State<GlobalBannerAdWidget> {
 
   @override
   void dispose() {
+    SubscriptionService.instance.removeListener(_onSubscriptionChanged);
     _bannerAd?.dispose();
     super.dispose();
   }
