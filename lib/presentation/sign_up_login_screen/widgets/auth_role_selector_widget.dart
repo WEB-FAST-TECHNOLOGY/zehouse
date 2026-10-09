@@ -5,11 +5,13 @@ import '../../../theme/app_theme.dart';
 class AuthRoleSelectorWidget extends StatelessWidget {
   final String selectedRole;
   final Function(String) onRoleChanged;
+  final bool isHorizontalScroll;
 
   const AuthRoleSelectorWidget({
     super.key,
     required this.selectedRole,
     required this.onRoleChanged,
+    this.isHorizontalScroll = false,
   });
 
   static const List<Map<String, dynamic>> _roles = [
@@ -35,7 +37,7 @@ class AuthRoleSelectorWidget extends StatelessWidget {
       'id': 'hotelier',
       'label': 'Hôtelier / Hébergeur',
       'icon': Icons.hotel_rounded,
-      'description': 'Hôtel, Appt meublé, Gîte',
+      'description': 'Hôtel, Appt meublé',
     },
     {
       'id': 'gestionnaire_evenement',
@@ -68,6 +70,29 @@ class AuthRoleSelectorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isHorizontalScroll) {
+      return SizedBox(
+        height: 85,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          itemCount: _roles.length,
+          separatorBuilder: (context, index) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final role = _roles[index];
+            return SizedBox(
+              width: 135,
+              child: _RoleCard(
+                role: role,
+                isSelected: selectedRole == role['id'],
+                onTap: () => onRoleChanged(role['id'] as String),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
     return Column(
       children: [
         Row(

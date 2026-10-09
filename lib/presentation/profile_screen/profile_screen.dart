@@ -1544,6 +1544,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   SizedBox(height: 0.8.h),
                   AuthRoleSelectorWidget(
                     selectedRole: selectedRole,
+                    isHorizontalScroll: true,
                     onRoleChanged: (newRole) {
                       setSheetState(() => selectedRole = newRole);
                     },

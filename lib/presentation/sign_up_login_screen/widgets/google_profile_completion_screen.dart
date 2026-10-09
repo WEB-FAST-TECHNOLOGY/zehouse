@@ -298,6 +298,7 @@ class _GoogleProfileCompletionScreenState
                 const SizedBox(height: 10),
                 AuthRoleSelectorWidget(
                   selectedRole: _selectedRole,
+                  isHorizontalScroll: true,
                   onRoleChanged: (role) => setState(() {
                     _selectedRole = role;
                     _selectedProfession = null;
