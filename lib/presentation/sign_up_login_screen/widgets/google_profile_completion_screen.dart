@@ -37,6 +37,7 @@ class _GoogleProfileCompletionScreenState
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _customProfessionController = TextEditingController();
 
   String _selectedRole = 'particulier';
   String? _selectedProfession;
@@ -74,23 +75,37 @@ class _GoogleProfileCompletionScreenState
       {'id': 'courtier', 'labelKey': 'profession_courtier', 'icon': Icons.handshake_rounded},
       {'id': 'mandataire', 'labelKey': 'profession_mandataire', 'icon': Icons.assignment_ind_rounded},
       {'id': 'gestionnaire', 'labelKey': 'profession_gestionnaire', 'icon': Icons.manage_accounts_rounded},
+      {'id': 'autre_agent', 'labelKey': 'profession_autre_agent', 'icon': Icons.person_add_rounded},
     ],
     'proprietaire': [
       {'id': 'bailleur', 'labelKey': 'profession_bailleur', 'icon': Icons.home_rounded},
       {'id': 'vendeur', 'labelKey': 'profession_vendeur', 'icon': Icons.sell_rounded},
       {'id': 'promoteur_prive', 'labelKey': 'profession_promoteur_prive', 'icon': Icons.villa_rounded},
       {'id': 'sci', 'labelKey': 'profession_sci', 'icon': Icons.business_rounded},
+      {'id': 'autre_proprio', 'labelKey': 'profession_autre_proprio', 'icon': Icons.home_work_outlined},
     ],
     'hotelier': [
       {'id': 'gerant_hotel', 'labelKey': 'profession_hotelier', 'icon': Icons.hotel_rounded},
       {'id': 'gestionnaire_meubles', 'labelKey': 'profession_gestionnaire_meuble', 'icon': Icons.chair_rounded},
       {'id': 'hote_maison_hotes', 'labelKey': 'profession_hote_maison_hotes', 'icon': Icons.bedroom_parent_rounded},
       {'id': 'gestionnaire_camping', 'labelKey': 'profession_gestionnaire_camping', 'icon': Icons.rv_hookup_rounded},
+      {'id': 'autre_hotelier', 'labelKey': 'profession_autre_hotelier', 'icon': Icons.nightlife_rounded},
     ],
     'gestionnaire_evenement': [
       {'id': 'gestionnaire_salles', 'labelKey': 'profession_gestionnaire_salles', 'icon': Icons.celebration_rounded},
       {'id': 'gestionnaire_bureaux', 'labelKey': 'profession_gestionnaire_bureaux', 'icon': Icons.business_center_rounded},
       {'id': 'gestionnaire_coworking', 'labelKey': 'profession_gestionnaire_coworking', 'icon': Icons.co_present_rounded},
+      {'id': 'autre_evenement', 'labelKey': 'profession_autre_evenement', 'icon': Icons.event_seat_rounded},
+    ],
+    'prestataire': [
+      {'id': 'demenageur', 'labelKey': 'profession_demenageur', 'icon': Icons.local_shipping_rounded},
+      {'id': 'artisan_reparation', 'labelKey': 'profession_artisan_reparation', 'icon': Icons.build_rounded},
+      {'id': 'nettoyage', 'labelKey': 'profession_nettoyage', 'icon': Icons.cleaning_services_rounded},
+      {'id': 'securite', 'labelKey': 'profession_securite', 'icon': Icons.security_rounded},
+      {'id': 'autre_prestataire', 'labelKey': 'profession_autre_prestataire', 'icon': Icons.miscellaneous_services_rounded},
+    ],
+    'autre': [
+      {'id': 'autre_role', 'labelKey': 'profession_autre', 'icon': Icons.edit_note_rounded},
     ],
   };
 
@@ -107,6 +122,7 @@ class _GoogleProfileCompletionScreenState
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _customProfessionController.dispose();
     super.dispose();
   }
 
@@ -172,6 +188,11 @@ class _GoogleProfileCompletionScreenState
         avatarUrl = _client.storage.from('avatars').getPublicUrl(fileName);
       }
 
+      final customProf = _customProfessionController.text.trim();
+      final effectiveProfession = customProf.isNotEmpty
+          ? customProf
+          : (_selectedProfession ?? _selectedRole);
+
       // Create / update the profile
       await _client.from('user_profiles').upsert({
         'id': widget.userId,
@@ -180,8 +201,7 @@ class _GoogleProfileCompletionScreenState
         'role': _selectedRole,
         'phone': _phoneController.text.trim(),
         if (avatarUrl != null) 'avatar_url': avatarUrl,
-        if (_selectedProfession != null && _selectedProfession!.isNotEmpty)
-          'profession': _selectedProfession,
+        'profession': effectiveProfession,
         'is_verified': false,
       });
 
@@ -200,6 +220,12 @@ class _GoogleProfileCompletionScreenState
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  bool get _showCustomProfessionInput {
+    if (_selectedRole == 'autre') return true;
+    if (_selectedProfession == null) return false;
+    return _selectedProfession!.contains('autre');
   }
 
   @override
@@ -370,8 +396,19 @@ class _GoogleProfileCompletionScreenState
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 24),
                 ],
+
+                if (_showCustomProfessionInput) ...[
+                  const SizedBox(height: 14),
+                  _buildField(
+                    controller: _customProfessionController,
+                    label: tr('field_custom_profession_label'),
+                    hint: tr('field_custom_profession_hint'),
+                    icon: Icons.edit_note_rounded,
+                  ),
+                ],
+
+                const SizedBox(height: 24),
 
                 // ── Profile photo (professionals only) ───────────────────────
                 if (_isProfessional) ...[

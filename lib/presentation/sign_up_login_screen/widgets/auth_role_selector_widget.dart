@@ -20,22 +20,16 @@ class AuthRoleSelectorWidget extends StatelessWidget {
       'description': 'Acheteur / Locataire',
     },
     {
-      'id': 'professionnel',
-      'label': 'Professionnel BTP',
-      'icon': Icons.business_center_rounded,
-      'description': 'Architecte / Promoteur',
+      'id': 'proprietaire',
+      'label': 'Propriétaire',
+      'icon': Icons.home_work_rounded,
+      'description': 'Bailleur / Vendeur',
     },
     {
       'id': 'agent',
       'label': 'Agent / Courtier',
       'icon': Icons.badge_rounded,
       'description': 'Agent immobilier',
-    },
-    {
-      'id': 'proprietaire',
-      'label': 'Propriétaire',
-      'icon': Icons.home_work_rounded,
-      'description': 'Bailleur / Vendeur',
     },
     {
       'id': 'hotelier',
@@ -49,13 +43,28 @@ class AuthRoleSelectorWidget extends StatelessWidget {
       'icon': Icons.celebration_rounded,
       'description': 'Salles de fêtes, Bureaux',
     },
+    {
+      'id': 'professionnel',
+      'label': 'Professionnel BTP',
+      'icon': Icons.business_center_rounded,
+      'description': 'Architecte / Promoteur',
+    },
+    {
+      'id': 'prestataire',
+      'label': 'Prestataire Services',
+      'icon': Icons.build_rounded,
+      'description': 'Déménagement, Entretien',
+    },
+    {
+      'id': 'autre',
+      'label': 'Autre Rôle',
+      'icon': Icons.edit_note_rounded,
+      'description': 'Spécifiez votre métier',
+    },
   ];
 
   static bool isProfessional(String role) =>
-      role == 'professionnel' ||
-      role == 'agent' ||
-      role == 'hotelier' ||
-      role == 'gestionnaire_evenement';
+      role != 'particulier';
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +102,21 @@ class AuthRoleSelectorWidget extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: _roles.sublist(4, 6).map((role) {
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _RoleCard(
+                  role: role,
+                  isSelected: selectedRole == role['id'],
+                  onTap: () => onRoleChanged(role['id'] as String),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: _roles.sublist(6, 8).map((role) {
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 8),

@@ -15,6 +15,7 @@ import '../../services/ad_helper.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../widgets/global_banner_ad_widget.dart';
 import '../../services/advertiser_service.dart';
+import '../sign_up_login_screen/widgets/auth_role_selector_widget.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -34,7 +35,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   String _email = '';
   String _phone = '';
   String _avatarUrl = '';
-  String _role = 'buyer';
+  String _role = 'particulier';
+  String _profession = '';
   String _memberSince = '';
   bool _isSaving = false;
 
@@ -109,7 +111,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           _email = (data['email'] as String?) ?? user.email ?? '';
           _phone = (data['phone'] as String?) ?? '';
           _avatarUrl = (data['avatar_url'] as String?) ?? '';
-          _role = (data['role'] as String?) ?? 'buyer';
+          _role = (data['role'] as String?) ?? 'particulier';
+          _profession = (data['profession'] as String?) ?? '';
           _memberSince = createdAt != null
               ? 'Membre depuis ${monthNames[createdAt.month - 1]} ${createdAt.year}'
               : 'Membre récent';
@@ -163,6 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     required String fullName,
     required String phone,
     required String role,
+    required String profession,
   }) async {
     setState(() => _isSaving = true);
     try {
@@ -171,7 +175,12 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       await _client
           .from('user_profiles')
-          .update({'full_name': fullName, 'phone': phone, 'role': role})
+          .update({
+            'full_name': fullName,
+            'phone': phone,
+            'role': role,
+            'profession': profession,
+          })
           .eq('id', user.id);
 
       if (mounted) {
@@ -179,6 +188,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           _fullName = fullName;
           _phone = phone;
           _role = role;
+          _profession = profession;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1430,6 +1440,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _showEditProfileSheet(BuildContext context) {
     final nameController = TextEditingController(text: _fullName);
     final phoneController = TextEditingController(text: _phone);
+    final professionController = TextEditingController(text: _profession);
     String selectedRole = _role;
 
     showModalBottomSheet(
@@ -1447,132 +1458,109 @@ class _ProfileScreenState extends State<ProfileScreen>
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
             padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppTheme.border,
-                      borderRadius: BorderRadius.circular(100),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.border,
+                        borderRadius: BorderRadius.circular(100),
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  'Modifier le profil',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 2.h),
-                TextField(
-                  controller: nameController,
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    color: AppTheme.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Nom complet',
-                    prefixIcon: Icon(
-                      Icons.person_outline_rounded,
-                      size: 20,
-                      color: AppTheme.muted,
+                  SizedBox(height: 2.h),
+                  Text(
+                    'Modifier le profil',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
-                ),
-                SizedBox(height: 1.5.h),
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    color: AppTheme.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Téléphone',
-                    prefixIcon: Icon(
-                      Icons.phone_outlined,
-                      size: 20,
-                      color: AppTheme.muted,
+                  SizedBox(height: 2.h),
+                  TextField(
+                    controller: nameController,
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      color: AppTheme.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Nom complet',
+                      prefixIcon: Icon(
+                        Icons.person_outline_rounded,
+                        size: 20,
+                        color: AppTheme.muted,
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  'Rôle',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textSecondary,
+                  SizedBox(height: 1.5.h),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      color: AppTheme.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Téléphone',
+                      prefixIcon: Icon(
+                        Icons.phone_outlined,
+                        size: 20,
+                        color: AppTheme.muted,
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(height: 0.8.h),
-                Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12.0),
+                  SizedBox(height: 1.5.h),
+                  TextField(
+                    controller: professionController,
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      color: AppTheme.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Profession / Spécialité',
+                      hintText: 'Ex: Hôtelier, Déménageur, Architecte, etc.',
+                      prefixIcon: Icon(
+                        Icons.work_outline_rounded,
+                        size: 20,
+                        color: AppTheme.muted,
+                      ),
+                    ),
                   ),
-                  child: Row(
-                    children:
-                        [
-                          {'key': 'buyer', 'label': 'Acheteur'},
-                          {'key': 'seller', 'label': 'Vendeur'},
-                          {'key': 'agent', 'label': 'Agent'},
-                        ].map((role) {
-                          final isSelected = selectedRole == role['key'];
-                          return Expanded(
-                            child: GestureDetector(
-                              onTap: () => setSheetState(
-                                () => selectedRole = role['key']!,
-                              ),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                margin: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppTheme.primary
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(9.0),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    role['label']!,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : AppTheme.muted,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                  SizedBox(height: 2.h),
+                  Text(
+                    'Rôle principal',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
-                ),
-                SizedBox(height: 2.5.h),
-                ElevatedButton(
-                  onPressed: _isSaving
-                      ? null
-                      : () async {
-                          Navigator.pop(ctx);
-                          await _updateProfile(
-                            fullName: nameController.text.trim(),
-                            phone: phoneController.text.trim(),
-                            role: selectedRole,
-                          );
-                        },
+                  SizedBox(height: 0.8.h),
+                  AuthRoleSelectorWidget(
+                    selectedRole: selectedRole,
+                    onRoleChanged: (newRole) {
+                      setSheetState(() => selectedRole = newRole);
+                    },
+                  ),
+                  SizedBox(height: 2.5.h),
+                  ElevatedButton(
+                    onPressed: _isSaving
+                        ? null
+                        : () async {
+                            Navigator.pop(ctx);
+                            await _updateProfile(
+                              fullName: nameController.text.trim(),
+                              phone: phoneController.text.trim(),
+                              role: selectedRole,
+                              profession: professionController.text.trim(),
+                            );
+                          },
                   child: _isSaving
                       ? const SizedBox(
                           height: 20,
@@ -1595,7 +1583,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   void _showSettingsSheet(BuildContext context) {

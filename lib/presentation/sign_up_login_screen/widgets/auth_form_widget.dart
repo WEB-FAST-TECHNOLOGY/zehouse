@@ -50,6 +50,7 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
   Uint8List? _profilePhotoBytes;
   String? _profilePhotoName;
   String? _selectedProfession;
+  final _customProfessionController = TextEditingController();
 
   // Professions per role — labels now use translation keys
   static const Map<String, List<Map<String, dynamic>>> _professionsByRole = {
@@ -148,6 +149,11 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
         'labelKey': 'profession_gestionnaire',
         'icon': Icons.manage_accounts_rounded,
       },
+      {
+        'id': 'autre_agent',
+        'labelKey': 'profession_autre_agent',
+        'icon': Icons.person_add_rounded,
+      },
     ],
     'proprietaire': [
       {
@@ -169,6 +175,11 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
         'id': 'sci',
         'labelKey': 'profession_sci',
         'icon': Icons.business_rounded,
+      },
+      {
+        'id': 'autre_proprio',
+        'labelKey': 'profession_autre_proprio',
+        'icon': Icons.home_work_outlined,
       },
     ],
     'hotelier': [
@@ -192,6 +203,11 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
         'labelKey': 'profession_gestionnaire_camping',
         'icon': Icons.rv_hookup_rounded,
       },
+      {
+        'id': 'autre_hotelier',
+        'labelKey': 'profession_autre_hotelier',
+        'icon': Icons.nightlife_rounded,
+      },
     ],
     'gestionnaire_evenement': [
       {
@@ -208,6 +224,45 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
         'id': 'gestionnaire_coworking',
         'labelKey': 'profession_gestionnaire_coworking',
         'icon': Icons.co_present_rounded,
+      },
+      {
+        'id': 'autre_evenement',
+        'labelKey': 'profession_autre_evenement',
+        'icon': Icons.event_seat_rounded,
+      },
+    ],
+    'prestataire': [
+      {
+        'id': 'demenageur',
+        'labelKey': 'profession_demenageur',
+        'icon': Icons.local_shipping_rounded,
+      },
+      {
+        'id': 'artisan_reparation',
+        'labelKey': 'profession_artisan_reparation',
+        'icon': Icons.build_rounded,
+      },
+      {
+        'id': 'nettoyage',
+        'labelKey': 'profession_nettoyage',
+        'icon': Icons.cleaning_services_rounded,
+      },
+      {
+        'id': 'securite',
+        'labelKey': 'profession_securite',
+        'icon': Icons.security_rounded,
+      },
+      {
+        'id': 'autre_prestataire',
+        'labelKey': 'profession_autre_prestataire',
+        'icon': Icons.miscellaneous_services_rounded,
+      },
+    ],
+    'autre': [
+      {
+        'id': 'autre_role',
+        'labelKey': 'profession_autre',
+        'icon': Icons.edit_note_rounded,
       },
     ],
   };
@@ -239,6 +294,7 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
     _passwordController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
+    _customProfessionController.dispose();
     super.dispose();
   }
 
@@ -553,6 +609,11 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
                         return;
                       }
 
+                      final customProf = _customProfessionController.text.trim();
+                      final effectiveProfession = (customProf.isNotEmpty)
+                          ? customProf
+                          : (_selectedProfession ?? widget.selectedRole);
+
                       debugPrint('Form validation succeeded. Calling onSubmit callback...');
                       widget.onSubmit(
                         _emailController.text.trim(),
@@ -560,7 +621,7 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
                         widget.isLogin ? null : _nameController.text,
                         widget.isLogin ? null : _phoneController.text.trim(),
                         widget.isLogin ? null : _profilePhotoBytes,
-                        widget.isLogin ? null : _selectedProfession,
+                        widget.isLogin ? null : effectiveProfession,
                       );
                     },
               style: ElevatedButton.styleFrom(
@@ -597,9 +658,15 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
     );
   }
 
+  bool get _showCustomProfessionInput {
+    if (widget.selectedRole == 'autre') return true;
+    if (_selectedProfession == null) return false;
+    return _selectedProfession!.contains('autre');
+  }
+
   Widget _buildProfessionSelector() {
     final professions = _currentProfessions;
-    if (professions.isEmpty) return const SizedBox.shrink();
+    final showInput = _showCustomProfessionInput;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,59 +690,70 @@ class AuthFormWidgetState extends State<AuthFormWidget> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: professions.map((prof) {
-            final isSelected = _selectedProfession == prof['id'];
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedProfession = isSelected
-                      ? null
-                      : prof['id'] as String;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppTheme.primary
-                      : AppTheme.surfaceVariant,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected ? AppTheme.primary : AppTheme.border,
-                    width: isSelected ? 2 : 1,
+        if (professions.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: professions.map((prof) {
+              final isSelected = _selectedProfession == prof['id'];
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedProfession = isSelected
+                        ? null
+                        : prof['id'] as String;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppTheme.primary
+                        : AppTheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSelected ? AppTheme.primary : AppTheme.border,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        prof['icon'] as IconData,
+                        size: 14,
+                        color: isSelected ? Colors.white : AppTheme.muted,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        tr(prof['labelKey'] as String),
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.white : AppTheme.textPrimary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      prof['icon'] as IconData,
-                      size: 14,
-                      color: isSelected ? Colors.white : AppTheme.muted,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      tr(prof['labelKey'] as String),
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : AppTheme.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        ),
+              );
+            }).toList(),
+          ),
+        ],
+        if (showInput) ...[
+          const SizedBox(height: 14),
+          _buildField(
+            controller: _customProfessionController,
+            label: tr('field_custom_profession_label'),
+            hint: tr('field_custom_profession_hint'),
+            icon: Icons.edit_note_rounded,
+          ),
+        ],
       ],
     );
   }
