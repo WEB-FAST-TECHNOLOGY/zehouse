@@ -411,19 +411,17 @@ class _SignUpLoginScreenState extends State<SignUpLoginScreen>
       body: SafeArea(
         child: Stack(
           children: [
-            isTablet
-                ? Center(child: SizedBox(width: 480, child: _buildContent()))
-                : SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight:
-                            size.height -
-                            MediaQuery.of(context).padding.top -
-                            MediaQuery.of(context).padding.bottom,
-                      ),
-                      child: _buildContent(),
-                    ),
+            Positioned.fill(
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Center(
+                  child: SizedBox(
+                    width: isTablet ? 480 : double.infinity,
+                    child: _buildContent(),
                   ),
+                ),
+              ),
+            ),
             // Theme toggle button top-left
             Positioned(
               top: 8,
@@ -636,6 +634,7 @@ class _SignUpLoginScreenState extends State<SignUpLoginScreen>
                 const SizedBox(height: 10),
                 AuthRoleSelectorWidget(
                   selectedRole: _selectedRole,
+                  isHorizontalScroll: true,
                   onRoleChanged: (role) => setState(() => _selectedRole = role),
                 ),
                 const SizedBox(height: 24),
