@@ -18,7 +18,7 @@ class Env {
   static String cinetpayApiPassword = 'F1r9A9n2Ck\$\$';
   static String cinetpaySiteId = '682641';
   
-  static String monerooApiKey = 'pvk_0omigq|01KZPA6K3P9TK76M3ZRNEJD5DF';
+  static String monerooApiKey = 'pvk_e289n1|01M3ATYP19AASWDGXAGP19CZ38';
 
   /// Dynamically fetch keys from Supabase 'app_settings' table
   static Future<void> init() async {

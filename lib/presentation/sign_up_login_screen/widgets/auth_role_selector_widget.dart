@@ -21,13 +21,13 @@ class AuthRoleSelectorWidget extends StatelessWidget {
     },
     {
       'id': 'professionnel',
-      'label': 'Professionnel',
+      'label': 'Professionnel BTP',
       'icon': Icons.business_center_rounded,
       'description': 'Architecte / Promoteur',
     },
     {
       'id': 'agent',
-      'label': 'Agent',
+      'label': 'Agent / Courtier',
       'icon': Icons.badge_rounded,
       'description': 'Agent immobilier',
     },
@@ -37,10 +37,25 @@ class AuthRoleSelectorWidget extends StatelessWidget {
       'icon': Icons.home_work_rounded,
       'description': 'Bailleur / Vendeur',
     },
+    {
+      'id': 'hotelier',
+      'label': 'Hôtelier / Hébergeur',
+      'icon': Icons.hotel_rounded,
+      'description': 'Hôtel, Appt meublé, Gîte',
+    },
+    {
+      'id': 'gestionnaire_evenement',
+      'label': 'Gestionnaire Espaces',
+      'icon': Icons.celebration_rounded,
+      'description': 'Salles de fêtes, Bureaux',
+    },
   ];
 
   static bool isProfessional(String role) =>
-      role == 'professionnel' || role == 'agent';
+      role == 'professionnel' ||
+      role == 'agent' ||
+      role == 'hotelier' ||
+      role == 'gestionnaire_evenement';
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +78,21 @@ class AuthRoleSelectorWidget extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: _roles.sublist(2, 4).map((role) {
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _RoleCard(
+                  role: role,
+                  isSelected: selectedRole == role['id'],
+                  onTap: () => onRoleChanged(role['id'] as String),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: _roles.sublist(4, 6).map((role) {
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 8),

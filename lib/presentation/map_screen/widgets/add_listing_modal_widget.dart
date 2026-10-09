@@ -37,13 +37,21 @@ class _AddListingModalWidgetState extends State<AddListingModalWidget> {
 
   final List<String> _propertyTypes = [
     'Appartement',
-    'Maison',
+    'Appt. Meublé',
     'Studio',
-    'Loft',
-    'Bureau',
+    'Studio Meublé',
+    'Maison',
     'Duplex',
+    'Loft',
     'Hôtel',
+    "Maison d'Hôtes",
     'Salle de Fêtes',
+    'Camping',
+    'Bureau',
+    'Local Commercial',
+    'Co-working',
+    'Entrepôt',
+    'Terrain',
   ];
 
   @override

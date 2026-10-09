@@ -342,7 +342,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     } else if (_activeFilter == 'Louer') {
       result = result.where((p) => p['listingType'] == 'rent').toList();
     } else if (_activeFilter != 'Tous') {
-      result = result.where((p) => p['type'] == _activeFilter).toList();
+      result = result.where((p) {
+        final pType = ((p['type'] ?? p['property_type'] ?? p['propertyType'] ?? '') as String).toLowerCase().replaceAll('_', ' ');
+        final filter = _activeFilter.toLowerCase().replaceAll('_', ' ');
+        return pType == filter || pType.contains(filter) || filter.contains(pType);
+      }).toList();
     }
 
     // Apply advanced filters

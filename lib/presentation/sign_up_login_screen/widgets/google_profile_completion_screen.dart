@@ -81,6 +81,17 @@ class _GoogleProfileCompletionScreenState
       {'id': 'promoteur_prive', 'labelKey': 'profession_promoteur_prive', 'icon': Icons.villa_rounded},
       {'id': 'sci', 'labelKey': 'profession_sci', 'icon': Icons.business_rounded},
     ],
+    'hotelier': [
+      {'id': 'gerant_hotel', 'labelKey': 'profession_hotelier', 'icon': Icons.hotel_rounded},
+      {'id': 'gestionnaire_meubles', 'labelKey': 'profession_gestionnaire_meuble', 'icon': Icons.chair_rounded},
+      {'id': 'hote_maison_hotes', 'labelKey': 'profession_hote_maison_hotes', 'icon': Icons.bedroom_parent_rounded},
+      {'id': 'gestionnaire_camping', 'labelKey': 'profession_gestionnaire_camping', 'icon': Icons.rv_hookup_rounded},
+    ],
+    'gestionnaire_evenement': [
+      {'id': 'gestionnaire_salles', 'labelKey': 'profession_gestionnaire_salles', 'icon': Icons.celebration_rounded},
+      {'id': 'gestionnaire_bureaux', 'labelKey': 'profession_gestionnaire_bureaux', 'icon': Icons.business_center_rounded},
+      {'id': 'gestionnaire_coworking', 'labelKey': 'profession_gestionnaire_coworking', 'icon': Icons.co_present_rounded},
+    ],
   };
 
   List<Map<String, dynamic>> get _currentProfessions =>

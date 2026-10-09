@@ -565,6 +565,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       {'key': 'buyer', 'label': tr('role_buyer'), 'icon': Icons.search_rounded},
       {'key': 'seller', 'label': tr('role_seller'), 'icon': Icons.sell_rounded},
       {'key': 'agent', 'label': tr('role_agent'), 'icon': Icons.badge_rounded},
+      {'key': 'hotelier', 'label': 'Hôtelier', 'icon': Icons.hotel_rounded},
+      {'key': 'gestionnaire_evenement', 'label': 'Salles / Espaces', 'icon': Icons.celebration_rounded},
     ];
 
     return Column(
@@ -664,12 +666,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               Icons.favorite_outline_rounded,
               '${_savedProperties.length} ${tr("favorites")}',
               AppTheme.accent,
-            ),
-            _buildStatChip(
-              Icons.science_rounded,
-              '🧪 Test CinetPay',
-              const Color(0xFFF59E0B),
-              onTap: () => Navigator.pushNamed(context, AppRoutes.cinetpayTestScreen),
             ),
           ],
         ),
@@ -772,31 +768,28 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildStatChip(IconData icon, String label, Color color, {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: color.withAlpha(20),
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: color.withAlpha(50)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: color),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: color,
-              ),
+  Widget _buildStatChip(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1641,10 +1634,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               Navigator.pop(ctx);
               Navigator.pushNamed(context, AppRoutes.subscriptionPlansScreen);
             }, color: AppTheme.warning),
-            _buildSettingsItem(Icons.science_rounded, '🧪 Test de Paiement CinetPay', () {
-              Navigator.pop(ctx);
-              Navigator.pushNamed(context, AppRoutes.cinetpayTestScreen);
-            }, color: const Color(0xFFF59E0B)),
             _buildSettingsItem(Icons.edit_outlined, 'Modifier le profil', () {
               Navigator.pop(ctx);
               _showEditProfileSheet(context);
